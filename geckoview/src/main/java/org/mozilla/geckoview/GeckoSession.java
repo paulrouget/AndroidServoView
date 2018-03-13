@@ -11,23 +11,20 @@ public class GeckoSession {
 	public GeckoSession(GeckoSessionSettings settings) {
 	}
 
-	public void loadUri(String uri) {
-	}
-
-	public void loadUri(Uri uri) {
-	}
-
 	public static void preload(final @NonNull Context context) {
-		preload(context, /* geckoArgs */ null,
-				/* extras */ null, /* multiprocess */ false);
+		preload(context, null, null, false);
 	}
 
-	public static void preload(final @NonNull Context context,
-			final @Nullable String[] geckoArgs,
-			final @Nullable Bundle extras,
-			final boolean multiprocess) {
-
+	public static void preload(final @NonNull Context context, final @Nullable String[] geckoArgs, final @Nullable Bundle extras, final boolean multiprocess) {
 	}
+
+	/**
+	 *
+	 * DELEGATES
+	 *
+	 */
+
+	/* ContentDelegate */
 
 	private ContentDelegate mContentDelegate;
 	public void setContentDelegate(ContentDelegate delegate) {
@@ -43,6 +40,8 @@ public class GeckoSession {
 		void onFullScreen(GeckoSession session, boolean fullScreen);
 		void onContextMenu(GeckoSession session, int screenX, int screenY, String uri, String elementSrc);
 	}
+
+	/* ProgressDelegate */
 
 	private ProgressDelegate mProgressDelegate;
 	public void setProgressDelegate(ProgressDelegate delegate) {
@@ -77,6 +76,8 @@ public class GeckoSession {
 		void onSecurityChange(GeckoSession session, SecurityInformation securityInfo);
 	}
 
+	/* TrackingProtectionDelegate */
+
 	private TrackingProtectionDelegate mTrackingProtectionDelegate;
 	public void setTrackingProtectionDelegate(TrackingProtectionDelegate delegate) {
 		mTrackingProtectionDelegate = delegate;
@@ -91,6 +92,8 @@ public class GeckoSession {
 		static final int CATEGORY_CONTENT = 1 << 3;
 		void onTrackerBlocked(GeckoSession session, String uri, int categories);
 	}
+
+	/* NavigationDelegate */
 
 	private NavigationDelegate mNavigationDelegate;
 	public void setNavigationDelegate(NavigationDelegate delegate) {
@@ -131,6 +134,8 @@ public class GeckoSession {
 		boolean onLoadUri(GeckoSession session, String uri, TargetWindow where);
 		void onNewSession(GeckoSession session, String uri, Response<GeckoSession> response);
 	}
+
+	/* PromptDelegate */
 
 	private PromptDelegate mPromptDelegate;
 	public void setPromptDelegate(PromptDelegate delegate) {
@@ -214,6 +219,8 @@ public class GeckoSession {
 		void onFilePrompt(GeckoSession session, String title, int type, String[] mimeTypes, FileCallback callback);
 	}
 
+	/* PermissionDelegate */
+
 	private PermissionDelegate mPermissionDelegate;
 	public void setPermissionDelegate(PermissionDelegate delegate) {
 		mPermissionDelegate = delegate;
@@ -251,10 +258,11 @@ public class GeckoSession {
 		}
 	}
 
+	/* ScrollDelegate */
+
 	public interface ScrollDelegate {
 		public void onScrollChanged(GeckoSession session, int scrollX, int scrollY);
 	}
-
 	private ScrollDelegate mScrollDelegate;
 	public void setScrollDelegate(ScrollDelegate delegate) {
 		mScrollDelegate = delegate;
@@ -263,7 +271,16 @@ public class GeckoSession {
 		return mScrollDelegate;
 	}
 
+	/**
+	 *
+	 * METHODS
+	 *
+	 */
 
+	public void loadUri(String uri) {
+	}
+	public void loadUri(Uri uri) {
+	}
 	public boolean isOpen() {
 		return true;
 	}
@@ -271,8 +288,6 @@ public class GeckoSession {
 	}
 	public void closeWindow() {
 	}
-	// public @NonNull TextInputController getTextInputController() {
-	// }
 	public void reload() {
 	}
 	public void stop() {
@@ -283,8 +298,6 @@ public class GeckoSession {
 	}
 	public void setActive(boolean active) {
 	}
-	// public GeckoSessionSettings getSettings() {
-	// }
 	public void importScript(final String url) {
 	}
 	public void exitFullScreen() {
@@ -297,5 +310,4 @@ public class GeckoSession {
 	public interface Response<T> {
 		void respond(T val);
 	}
-
 }
