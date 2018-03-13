@@ -3,8 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/ServoView.iml" filepath="$PROJECT_DIR$/ServoView.iml" />
-      <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
-      <module fileurl="file://$PROJECT_DIR$/servoview/servoview.iml" filepath="$PROJECT_DIR$/servoview/servoview.iml" />
+      <module fileurl="file://$PROJECT_DIR$/geckoview/servoview.iml" filepath="$PROJECT_DIR$/geckoview/servoview.iml" />
     </modules>
   </component>
 </project>
