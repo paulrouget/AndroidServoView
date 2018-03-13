@@ -5,6 +5,7 @@ import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.content.Context;
 import android.os.Bundle;
+import android.util.Log;
 
 public class GeckoSession {
 
@@ -16,6 +17,9 @@ public class GeckoSession {
   }
 
   public static void preload(final @NonNull Context context, final @Nullable String[] geckoArgs, final @Nullable Bundle extras, final boolean multiprocess) {
+    Log.w("PAUL", "Trying to load library");
+    System.loadLibrary("c++_shared");
+    System.loadLibrary("servobridge");
   }
 
   /**
