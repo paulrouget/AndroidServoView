@@ -1,9 +1,11 @@
 package org.mozilla.geckoview;
 
+import android.graphics.Color;
 import android.util.AttributeSet;
 import android.widget.FrameLayout;
 import android.content.Context;
 import android.widget.TextView;
+import android.view.SurfaceView;
 import android.view.ViewGroup;
 
 public class GeckoView  extends FrameLayout {
@@ -11,7 +13,7 @@ public class GeckoView  extends FrameLayout {
     super(context);
   }
 
-  private TextView mView;
+  private SurfaceView mView;
   public GeckoView(final Context context, final AttributeSet attrs) {
     super(context, attrs);
     setFocusable(true);
@@ -19,9 +21,9 @@ public class GeckoView  extends FrameLayout {
     setDescendantFocusability(FOCUS_BLOCK_DESCENDANTS);
     setWillNotCacheDrawing(false);
 
-    mView = new TextView(getContext());
+    mView = new SurfaceView(getContext());
+    mView.setBackgroundColor(Color.RED);
     addView(mView, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-    mView.append("INIT\n");
   }
 
 
