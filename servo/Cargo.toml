@@ -9,9 +9,10 @@ name = "servobridge"
 crate-type = ["cdylib"]
 
 [dependencies]
-libservo = { git = "https://github.com/servo/servo", rev = "a6ce817045" }
+libservo = { git = "https://github.com/servo/servo", rev = "c9f60c5a67" }
 libc = "0.2"
 log = "0.3"
+jni = "0.9"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 core-foundation = "0.4"
@@ -19,8 +20,3 @@ core-foundation = "0.4"
 [build-dependencies]
 gl_generator = "0.6"
 moz-cheddar = "0.4"
-
-[replace]
-# "openssl:0.9.12" = { path = "../../rust-openssl/openssl/" }
-# "https://github.com/servo/webrender#0.52.0" = { path = '../../webrender/webrender/' }
-# "https://github.com/servo/webrender#webrender_api:0.52.0" = { path = '../../webrender/webrender_api/' }
