@@ -9,6 +9,38 @@ import android.util.Log;
 
 public class GeckoSession {
 
+  static class ServoCallbacks implements LibServo.ServoCallbacks {
+    ServoCallbacks() {
+    }
+    public void wakeup(){
+      Log.w("servo", "java:wakeup");
+    };
+    public void flush(){
+      Log.w("servo", "java:flush");
+    };
+    public void log(String log) {
+      Log.w("servo", "log: " + log);
+    };
+    public void onLoadStarted() {
+      Log.w("servo", "java:onLoadStarted");
+    };
+    public void onLoadEnded() {
+      Log.w("servo", "java:onLoadEnded");
+
+    };
+    public void onTitleChanged(String title) {
+      Log.w("servo", "java:onTitleChanged: " + title);
+
+    };
+    public void onUrlChanged(String url) {
+      Log.w("servo", "java:onUrlChanged: " + url);
+
+    };
+    public void onHistoryChanged(boolean canGoBack, boolean canGoForward) {
+      Log.w("servo", "java:onHistoryChanged: " + canGoBack + ", " + canGoForward);
+    };
+  }
+
   public GeckoSession(GeckoSessionSettings settings) {
   }
 
@@ -19,7 +51,10 @@ public class GeckoSession {
   public static void preload(final @NonNull Context context, final @Nullable String[] geckoArgs, final @Nullable Bundle extras, final boolean multiprocess) {
     Log.w("PAUL", "Trying to load library");
     System.loadLibrary("c++_shared");
-    System.loadLibrary("servobridge");
+    LibServo l = new LibServo();
+    Log.w("PAUL:version", l.version());
+    ServoCallbacks c = new ServoCallbacks();
+    l.init("https://servo.org", "/sdcard/servo/resources/", c);
   }
 
   /**

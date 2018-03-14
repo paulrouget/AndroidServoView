@@ -33,10 +33,10 @@ fn main() {
     Registry::new(Api::Egl, (1, 5), Profile::Core, Fallbacks::All, [])
         .write_bindings(StaticStructGenerator, &mut file).unwrap();
 
-    // Generate C header
-    cheddar::Cheddar::new().expect("could not read manifest")
-        .module("api").expect("malformed module path")
-        .run_build("target/libservobridge.h");
+    // // Generate C header
+    // cheddar::Cheddar::new().expect("could not read manifest")
+    //     .module("api").expect("malformed module path")
+    //     .run_build("target/libservobridge.h");
 }
 
 fn android_main() {

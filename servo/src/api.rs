@@ -6,6 +6,38 @@ use logs::Logger;
 use gl_glue;
 use glue::{self, SERVO};
 use std::os::raw::c_char;
+use jni::JNIEnv;
+use jni::objects::{GlobalRef, JClass, JObject, JValue, JString};
+use jni::sys::{jint, jlong, jstring};
+use jni::signature::{Primitive, JavaType};
+use jni::JavaVM;
+
+#[no_mangle]
+#[allow(non_snake_case)]
+pub fn Java_org_mozilla_geckoview_LibServo_version(env: JNIEnv, _class: JClass) -> jstring {
+    let v = glue::servo_version();
+    let output = env.new_string(format!("rust says: {}", v)).expect("Couldn't create java string");
+    output.into_inner()
+}
+
+/// Needs to be called from the EGL thread
+#[no_mangle]
+#[allow(non_snake_case)]
+pub fn Java_org_mozilla_geckoview_LibServo_init(
+    env: JNIEnv, _: JClass,
+    url: jstring,
+    resources_path: jstring,
+    callbacks_obj: JObject,
+    layout_obj: JObject) {
+
+    let callbacks = HostCallbacks::new(callbacks_obj, env);
+    // let layout = ViewLayout::new(layout_obj);
+    // let _ = Logger::init(|msg| {callbacks.log(msg)});
+    callbacks.flush();
+    callbacks.log("hi");
+    // let gl = gl_glue::egl::init();
+    // glue::init(gl, url, resources_path, callbacks, layout)
+}
 
 /// Generic result errors
 #[repr(C)]
@@ -34,43 +66,66 @@ pub enum TouchState {
     Up,
 }
 
-/// Callback used by Servo internals
-#[repr(C)]
 pub struct HostCallbacks {
+    callbacks: GlobalRef,
+    jvm: JavaVM,
+}
+
+impl HostCallbacks {
+
+    pub fn new(jobject: JObject, env: JNIEnv) -> HostCallbacks {
+        let jvm = env.get_java_vm().unwrap();
+        HostCallbacks { callbacks: env.new_global_ref(jobject).unwrap(), jvm }
+    }
 
     /// Will be called from any thread.
     /// Will be called to notify embedder that some events
     /// are available, and that perform_updates need to be called
-    pub wakeup: extern fn(),
+    pub fn wakeup(&self) {
+        // env.call_method(self.callbacks.as_obj(), "wakeup", JavaType::Primitive(Primitive::void), &[]).unwrap();
+    }
 
     /// Will be called from the thread used for the init call
     /// Will be called when the GL buffer has been updated.
-    pub flush: extern fn(),
+    pub fn flush(&self) {
+        let env = self.jvm.get_env().unwrap();
+        env.call_method(self.callbacks.as_obj(), "flush", "()V", &[]).unwrap();
+    }
 
     /// Will be call from any thread.
     /// Used to report logging.
     /// Warning: this might be called a lot.
-    pub log: extern fn(log: *const c_char),
+    pub fn log(&self, log: &str) {
+        let env = self.jvm.get_env().unwrap();
+        let out = env.new_string(log).unwrap();
+        env.call_method(self.callbacks.as_obj(), "log", "(Ljava/lang/String;)V",
+            &[JValue::Object(JObject::from(out))]).unwrap();
+        // env.call_method(self.callbacks.as_obj(), "log", "()V", &[arg]).unwrap();
+    }
 
     /// Page starts loading.
     /// "Reload button" becomes "Stop button".
     /// Throbber starts spinning.
-    pub on_load_started: extern fn(),
+    pub fn on_load_started(&self) {
+    }
 
     /// Page has loaded.
     /// "Stop button" becomes "Reload button".
     /// Throbber stops spinning.
-    pub on_load_ended: extern fn(),
+    pub fn on_load_ended(&self) {
+    }
 
     /// Title changed.
-    pub on_title_changed: extern fn(title: *const c_char),
+    pub fn on_title_changed(&self, title: *const c_char) {
+    }
 
-    /// URL changed.
-    pub on_url_changed: extern fn(url: *const c_char),
+    pub fn on_url_changed(&self, url: *const c_char) {
+    }
 
     /// Back/forward state changed.
     /// Back/forward buttons need to be disabled/enabled.
-    pub on_history_changed: extern fn(can_go_back: bool, can_go_forward: bool),
+    pub fn on_history_changed(&self, can_go_back: bool, can_go_forward: bool) {
+    }
 }
 
 #[repr(C)]
@@ -111,38 +166,6 @@ pub struct ViewLayout {
     /// Pixel density.
     pub hidpi_factor: f32,
 }
-
-#[no_mangle]
-pub extern "C" fn servo_version() -> *const c_char {
-    glue::servo_version()
-}
-
-/// Needs to be called from the EGL thread
-#[cfg(not(target_os = "macos"))]
-#[no_mangle]
-pub extern "C" fn init_with_egl(
-    url: *const c_char,
-    resources_path: *const c_char,
-    callbacks: HostCallbacks,
-    layout: ViewLayout) -> ServoResult {
-    let _ = Logger::init(callbacks.log);
-    let gl = gl_glue::egl::init();
-    glue::init(gl, url, resources_path, callbacks, layout)
-}
-
-/// Needs to be called from the main thread
-#[cfg(target_os = "macos")]
-#[no_mangle]
-pub extern "C" fn init_with_gl(
-    url: *const c_char,
-    resources_path: *const c_char,
-    callbacks: HostCallbacks,
-    layout: ViewLayout) -> ServoResult {
-    let _ = Logger::init(callbacks.log);
-    let gl = gl_glue::gl::init();
-    glue::init(gl, url, resources_path, callbacks, layout)
-}
-
 
 /// This is the Servo heartbeat. This needs to be called
 /// everytime wakeup is called.

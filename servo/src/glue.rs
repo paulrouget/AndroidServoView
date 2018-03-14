@@ -18,7 +18,7 @@ use servo::servo_config::resource_files::set_resources_path;
 use servo::servo_geometry::DeviceIndependentPixel;
 use servo::servo_url::ServoUrl;
 use servo::style_traits::DevicePixel;
-use servo::style_traits::cursor::Cursor;
+use servo::style_traits::cursor::CursorKind;
 use servo::webrender_api;
 use servo;
 use std::cell::RefCell;
@@ -38,12 +38,8 @@ pub struct ServoGlue {
     events: Vec<WindowEvent>,
 }
 
-pub fn servo_version() -> *const c_char {
-    let servo_version = servo::config::servo_version();
-    let text = CString::new(servo_version).unwrap();
-    let ptr = text.as_ptr();
-    mem::forget(text);
-    ptr
+pub fn servo_version() -> String {
+    servo::config::servo_version()
 }
 
 pub fn init(
@@ -77,7 +73,7 @@ pub fn init(
     gl.finish();
 
     let callbacks = Rc::new(ServoCallbacks {
-        waker: Box::new(RemoteEventLoopWaker(callbacks.wakeup)),
+        waker: Box::new(RemoteEventLoopWaker(/*callbacks.wakeup*/)),
         gl: gl.clone(),
         host_callbacks: callbacks,
         layout: RefCell::new(layout),
@@ -191,14 +187,14 @@ impl ServoGlue {
 }
 
 
-pub struct RemoteEventLoopWaker(extern fn());
+pub struct RemoteEventLoopWaker();
 
 impl EventLoopWaker for RemoteEventLoopWaker {
     fn clone(&self) -> Box<EventLoopWaker + Send> {
-        Box::new(RemoteEventLoopWaker(self.0))
+        Box::new(RemoteEventLoopWaker())
     }
     fn wake(&self) {
-        (self.0)();
+        // (self.0)();
     }
 }
 
@@ -217,7 +213,7 @@ impl WindowMethods for ServoCallbacks {
 
     fn present(&self) {
         info!("WindowMethods::present");
-        (self.host_callbacks.flush)();
+        self.host_callbacks.flush();
     }
 
     fn supports_clipboard(&self) -> bool {
@@ -270,25 +266,25 @@ impl WindowMethods for ServoCallbacks {
 
     fn load_start(&self, _id: BrowserId) {
         info!("WindowMethods::load_start");
-        (self.host_callbacks.on_load_started)();
+        self.host_callbacks.on_load_started();
     }
 
     fn load_end(&self, _id: BrowserId) {
         info!("WindowMethods::load_end");
-        (self.host_callbacks.on_load_ended)();
+        self.host_callbacks.on_load_ended();
     }
 
     fn history_changed(&self, _id: BrowserId, entries: Vec<LoadData>, current: usize) {
         info!("WindowMethods::history_changed");
         let can_go_back = current > 0;
         let can_go_forward = current < entries.len() - 1;
-        (self.host_callbacks.on_history_changed)(can_go_back, can_go_forward);
+        self.host_callbacks.on_history_changed(can_go_back, can_go_forward);
         let url = entries[current].url.to_string();
         let url = CString::new(url).unwrap();
         let url_ptr = url.as_ptr();
         mem::forget(url);
         // FIXME: when to free url_ptr?
-        (self.host_callbacks.on_url_changed)(url_ptr);
+        self.host_callbacks.on_url_changed(url_ptr);
     }
 
     fn screen_size(&self, id: BrowserId) -> Size2D<u32> {
@@ -302,6 +298,7 @@ impl WindowMethods for ServoCallbacks {
     }
 
 
+    fn handle_panic(&self, _: BrowserId, _reason: String, _backtrace: Option<String>) { }
     fn allow_navigation(&self, _id: BrowserId, _url: ServoUrl, chan: ipc::IpcSender<bool>) { chan.send(true).ok(); }
     fn set_inner_size(&self, _id: BrowserId, _size: Size2D<u32>) {}
     fn set_position(&self, _id: BrowserId, _point: Point2D<i32>) {}
@@ -310,7 +307,7 @@ impl WindowMethods for ServoCallbacks {
     fn status(&self, _id: BrowserId, _status: Option<String>) {}
     fn load_error(&self, _id: BrowserId, _: NetError, _url: String) {}
     fn head_parsed(&self, _id: BrowserId) {}
-    fn set_cursor(&self, _cursor: Cursor) { }
+    fn set_cursor(&self, _cursor: CursorKind) { }
     fn set_favicon(&self, _id: BrowserId, _url: ServoUrl) {}
     fn handle_key(&self, _id: Option<BrowserId>, _ch: Option<char>, _key: Key, _mods: KeyModifiers) { }
 }
