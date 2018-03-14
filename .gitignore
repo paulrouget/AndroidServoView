@@ -8,5 +8,5 @@
 /captures
 .externalNativeBuild
 /geckoview/libs/armeabi-v7a/
-/servo/.cargo/
-/servo/target/
+/rust/.cargo/
+/rust/target/

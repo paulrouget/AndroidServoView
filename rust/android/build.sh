@@ -63,10 +63,10 @@ export OPENSSL_STATIC="TRUE"
 
 cargo build --release --target $RUST_TARGET
 
-HEADER_NAME="libservobridge.h"
+# HEADER_NAME="libservobridge.h"
 TARGET="./target/$RUST_TARGET/release/libservobridge.so"
-DEST="../geckoview/libs/$ABI"
+DEST="../java/libs/$ABI"
 $NDK_BIN_PATH/$TOOLCHAIN_PATH-strip $TARGET
 cp $TARGET $DEST
 cp $ANDROID_NDK/sources/cxx-stl/llvm-libc++/libs/$ABI/libc++_shared.so $DEST
-cp ./target/$HEADER_NAME $DEST
+# cp ./target/$HEADER_NAME $DEST
