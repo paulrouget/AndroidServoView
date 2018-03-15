@@ -9,17 +9,27 @@ import android.util.Log;
 
 public class GeckoSession {
 
-  static class ServoCallbacks implements LibServo.ServoCallbacks {
-    ServoCallbacks() {
-    }
+  public interface GLControls {
+    public void flush();
+    public void executeInGLThread(Runnable r);
+  }
+
+  static class WakeupCallback implements LibServo.WakeupCallback {
     public void wakeup(){
       Log.w("servo", "java:wakeup");
+      mGLControls.executeInGLThread(new Runnable() {
+        public void run() {
+          mServo.performUpdates();
+        }
+      });
     };
+  }
+
+  static class ServoCallbacks implements LibServo.ServoCallbacks {
     public void flush(){
       Log.w("servo", "java:flush");
-    };
-    public void log(String log) {
-      Log.w("servo", "log: " + log);
+      // Call https://developer.android.com/reference/android/opengl/GLSurfaceView.html#requestRender()
+      // mGLControls.flush();
     };
     public void onLoadStarted() {
       Log.w("servo", "java:onLoadStarted");
@@ -48,13 +58,26 @@ public class GeckoSession {
     preload(context, null, null, false);
   }
 
+  private static LibServo mServo;
+  private static WakeupCallback mWakeupCallback;
   public static void preload(final @NonNull Context context, final @Nullable String[] geckoArgs, final @Nullable Bundle extras, final boolean multiprocess) {
-    Log.w("PAUL", "Trying to load library");
+  }
+
+  private static GLControls mGLControls;
+  public void setGLControl(GLControls controls) {
+    mGLControls = controls;
+  }
+
+  public void onGLReady() {
+    Log.w("servo", "Tryyying to load library");
     System.loadLibrary("c++_shared");
-    LibServo l = new LibServo();
-    Log.w("PAUL:version", l.version());
-    ServoCallbacks c = new ServoCallbacks();
-    l.init("https://servo.org", "/sdcard/servo/resources/", c);
+    mServo = new LibServo();
+    Log.w("servo:version", mServo.version());
+    mGLControls.executeInGLThread(new Runnable() {
+      public void run() {
+        mServo.init("http://paulrouget.com", "/sdcard/servo/resources/", new WakeupCallback(), new ServoCallbacks());
+      }
+    });
   }
 
   /**

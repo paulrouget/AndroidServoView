@@ -1,5 +1,7 @@
 #!/bin/sh
 
+set -e
+
 BASEDIR=$(dirname "$0")
 cd $BASEDIR/..
 
@@ -61,11 +63,11 @@ export OPENSSL_INCLUDE_DIR="$OPENSSL_LIB_DIR/include/"
 
 export OPENSSL_STATIC="TRUE"
 
-cargo build --release --target $RUST_TARGET
+cargo build --target $RUST_TARGET
 
 # HEADER_NAME="libservobridge.h"
-TARGET="./target/$RUST_TARGET/release/libservobridge.so"
-DEST="../java/libs/$ABI"
+TARGET="./target/$RUST_TARGET/debug/libservobridge.so"
+DEST="../geckoview/libs/$ABI"
 $NDK_BIN_PATH/$TOOLCHAIN_PATH-strip $TARGET
 cp $TARGET $DEST
 cp $ANDROID_NDK/sources/cxx-stl/llvm-libc++/libs/$ABI/libc++_shared.so $DEST

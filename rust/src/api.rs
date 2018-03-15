@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-use logs::Logger;
+use android_logger;
 use gl_glue;
 use glue::{self, SERVO};
 use std::os::raw::c_char;
@@ -11,6 +11,8 @@ use jni::objects::{GlobalRef, JClass, JObject, JValue, JString};
 use jni::sys::{jint, jlong, jstring};
 use jni::signature::{Primitive, JavaType};
 use jni::JavaVM;
+use log::Level;
+use std::sync::Arc;
 
 #[no_mangle]
 #[allow(non_snake_case)]
@@ -25,19 +27,53 @@ pub fn Java_org_mozilla_geckoview_LibServo_version(env: JNIEnv, _class: JClass) 
 #[allow(non_snake_case)]
 pub fn Java_org_mozilla_geckoview_LibServo_init(
     env: JNIEnv, _: JClass,
-    url: jstring,
-    resources_path: jstring,
+    url: JString,
+    resources_path: JString,
+    wakeup_obj: JObject,
     callbacks_obj: JObject,
     layout_obj: JObject) {
 
-    let callbacks = HostCallbacks::new(callbacks_obj, env);
+    android_logger::init_once(Level::Debug);
+
+    let url = env.get_string(url).expect("Couldn't get java string").into();
+    let resources_path = env.get_string(resources_path).expect("Couldn't get java string").into();
+
     // let layout = ViewLayout::new(layout_obj);
-    // let _ = Logger::init(|msg| {callbacks.log(msg)});
-    callbacks.flush();
-    callbacks.log("hi");
-    // let gl = gl_glue::egl::init();
-    // glue::init(gl, url, resources_path, callbacks, layout)
+    let layout = ViewLayout {
+        /// Size of the view. Hardware pixels.
+        view_size: Size { width: 400, height: 400 },
+        margins: Margins { top: 0, right: 0, bottom: 0, left: 0 },
+        position: Position { x: 0, y: 0 },
+        hidpi_factor: 2.0,
+    };
+
+    let wakeup = WakeupCallback::new(wakeup_obj, &env);
+    let callbacks = HostCallbacks::new(callbacks_obj, &env);
+
+    // callbacks.flush();
+    debug!("FOO1111");
+    let gl = gl_glue::egl::init();
+    debug!("FOO2");
+    glue::init(gl, url, resources_path, wakeup, callbacks, layout);
+
+
+    // FIXME: send ServoResult
 }
+
+/// This is the Servo heartbeat. This needs to be called
+/// everytime wakeup is called.
+#[no_mangle]
+#[allow(non_snake_case)]
+pub fn Java_org_mozilla_geckoview_LibServo_performUpdates() {
+    let mut res = ServoResult::UnexpectedError;
+    SERVO.with(|s| {
+        res = s.borrow_mut().as_mut().map(|ref mut s| {
+            s.perform_updates()
+        }).unwrap_or(ServoResult::WrongThread)
+    });
+    // FIXME: return res
+}
+
 
 /// Generic result errors
 #[repr(C)]
@@ -71,60 +107,74 @@ pub struct HostCallbacks {
     jvm: JavaVM,
 }
 
-impl HostCallbacks {
+pub struct WakeupCallback {
+    callback: GlobalRef,
+    jvm: Arc<JavaVM>,
+}
 
-    pub fn new(jobject: JObject, env: JNIEnv) -> HostCallbacks {
-        let jvm = env.get_java_vm().unwrap();
-        HostCallbacks { callbacks: env.new_global_ref(jobject).unwrap(), jvm }
+impl WakeupCallback {
+    pub fn clone(&self) -> WakeupCallback {
+        WakeupCallback {
+            callback: self.callback.clone(),
+            jvm: self.jvm.clone(),
+        }
     }
-
+    pub fn new(jobject: JObject, env: &JNIEnv) -> WakeupCallback {
+        let jvm = Arc::new(env.get_java_vm().unwrap());
+        WakeupCallback { callback: env.new_global_ref(jobject).unwrap(), jvm }
+    }
     /// Will be called from any thread.
     /// Will be called to notify embedder that some events
     /// are available, and that perform_updates need to be called
     pub fn wakeup(&self) {
-        // env.call_method(self.callbacks.as_obj(), "wakeup", JavaType::Primitive(Primitive::void), &[]).unwrap();
+        debug!("api.rs::wakeup");
+        let env = self.jvm.get_env().unwrap();
+        env.call_method(self.callback.as_obj(), "wakeup", "()V", &[]).unwrap();
+    }
+}
+
+impl HostCallbacks {
+
+    pub fn new(jobject: JObject, env: &JNIEnv) -> HostCallbacks {
+        let jvm = env.get_java_vm().unwrap();
+        HostCallbacks { callbacks: env.new_global_ref(jobject).unwrap(), jvm }
     }
 
     /// Will be called from the thread used for the init call
     /// Will be called when the GL buffer has been updated.
     pub fn flush(&self) {
+        debug!("api.rs::flush");
         let env = self.jvm.get_env().unwrap();
         env.call_method(self.callbacks.as_obj(), "flush", "()V", &[]).unwrap();
-    }
-
-    /// Will be call from any thread.
-    /// Used to report logging.
-    /// Warning: this might be called a lot.
-    pub fn log(&self, log: &str) {
-        let env = self.jvm.get_env().unwrap();
-        let out = env.new_string(log).unwrap();
-        env.call_method(self.callbacks.as_obj(), "log", "(Ljava/lang/String;)V",
-            &[JValue::Object(JObject::from(out))]).unwrap();
-        // env.call_method(self.callbacks.as_obj(), "log", "()V", &[arg]).unwrap();
     }
 
     /// Page starts loading.
     /// "Reload button" becomes "Stop button".
     /// Throbber starts spinning.
     pub fn on_load_started(&self) {
+        debug!("api.rs::on_load_started");
     }
 
     /// Page has loaded.
     /// "Stop button" becomes "Reload button".
     /// Throbber stops spinning.
     pub fn on_load_ended(&self) {
+        debug!("api.rs::on_load_ended");
     }
 
     /// Title changed.
     pub fn on_title_changed(&self, title: *const c_char) {
+        debug!("api.rs::on_title_changed");
     }
 
     pub fn on_url_changed(&self, url: *const c_char) {
+        debug!("api.rs::on_url_changed");
     }
 
     /// Back/forward state changed.
     /// Back/forward buttons need to be disabled/enabled.
     pub fn on_history_changed(&self, can_go_back: bool, can_go_forward: bool) {
+        debug!("api.rs::on_history_changed");
     }
 }
 
@@ -165,19 +215,6 @@ pub struct ViewLayout {
     pub position: Position,
     /// Pixel density.
     pub hidpi_factor: f32,
-}
-
-/// This is the Servo heartbeat. This needs to be called
-/// everytime wakeup is called.
-#[no_mangle]
-pub extern "C" fn perform_updates() -> ServoResult {
-    let mut res = ServoResult::UnexpectedError;
-    SERVO.with(|s| {
-        res = s.borrow_mut().as_mut().map(|ref mut s| {
-            s.perform_updates()
-        }).unwrap_or(ServoResult::WrongThread)
-    });
-    res
 }
 
 #[no_mangle]

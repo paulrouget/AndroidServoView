@@ -44,48 +44,45 @@ pub fn servo_version() -> String {
 
 pub fn init(
     gl: Rc<gl::Gl>,
-    url: *const c_char,
-    resources_path: *const c_char,
+    url: String,
+    resources_path: String,
+    wakeup: WakeupCallback,
     callbacks: HostCallbacks,
     layout: ViewLayout) -> ServoResult {
 
+    debug!("BAR0");
     info!("Init: {:?}", layout);
 
-    let resources_path = unsafe { CStr::from_ptr(resources_path) };
-    let resources_path = match resources_path.to_str() {
-        Ok(path) => path,
-        Err(_) => return ServoResult::CantReadStr,
-    };
+    debug!("BAR1");
+    set_resources_path(Some(resources_path));
 
-    let url = unsafe { CStr::from_ptr(url) };
-    let url = match url.to_str() {
-        Ok(url) => url,
-        Err(_) => return ServoResult::CantReadStr,
-    };
-
-    set_resources_path(Some(resources_path.to_owned()));
-
+    debug!("BAR2");
     let opts = opts::default_opts();
     opts::set_defaults(opts);
 
+    debug!("BAR3");
     gl.clear_color(1.0, 1.0, 1.0, 1.0);
     gl.clear(gl::COLOR_BUFFER_BIT);
     gl.finish();
 
+    debug!("BAR4");
     let callbacks = Rc::new(ServoCallbacks {
-        waker: Box::new(RemoteEventLoopWaker(/*callbacks.wakeup*/)),
+        waker: Box::new(RemoteEventLoopWaker(wakeup)),
         gl: gl.clone(),
         host_callbacks: callbacks,
         layout: RefCell::new(layout),
     });
 
+    debug!("BAR5");
     let mut servo = servo::Servo::new(callbacks.clone());
 
-    let url = ServoUrl::parse(url).unwrap();
+    debug!("BAR6");
+    let url = ServoUrl::parse(&url).unwrap();
     let (sender, receiver) = ipc::channel().unwrap();
     servo.handle_events(vec![WindowEvent::NewBrowser(url, sender)]);
     let browser_id = receiver.recv().unwrap();
     servo.handle_events(vec![WindowEvent::SelectBrowser(browser_id)]);
+    debug!("BAR7");
 
     SERVO.with(|s| {
         *s.borrow_mut() = Some(ServoGlue {
@@ -187,14 +184,14 @@ impl ServoGlue {
 }
 
 
-pub struct RemoteEventLoopWaker();
+pub struct RemoteEventLoopWaker(WakeupCallback);
 
 impl EventLoopWaker for RemoteEventLoopWaker {
     fn clone(&self) -> Box<EventLoopWaker + Send> {
-        Box::new(RemoteEventLoopWaker())
+        Box::new(RemoteEventLoopWaker(self.0.clone()))
     }
     fn wake(&self) {
-        // (self.0)();
+        self.0.wakeup();
     }
 }
 
@@ -298,7 +295,9 @@ impl WindowMethods for ServoCallbacks {
     }
 
 
-    fn handle_panic(&self, _: BrowserId, _reason: String, _backtrace: Option<String>) { }
+    fn handle_panic(&self, _: BrowserId, reason: String, _backtrace: Option<String>) {
+        debug!("PANIC!!! {}", reason);
+    }
     fn allow_navigation(&self, _id: BrowserId, _url: ServoUrl, chan: ipc::IpcSender<bool>) { chan.send(true).ok(); }
     fn set_inner_size(&self, _id: BrowserId, _size: Size2D<u32>) {}
     fn set_position(&self, _id: BrowserId, _point: Point2D<i32>) {}

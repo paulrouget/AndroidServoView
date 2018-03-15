@@ -3,7 +3,6 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 extern crate gl_generator;
-extern crate cheddar;
 
 use std::env;
 use std::path::Path;
@@ -18,28 +17,6 @@ fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=src/api.rs");
 
-    let target = env::var("TARGET").unwrap();
-
-    if target.contains("android") {
-        android_main();
-    }
-
-    // Generate GL bindings
-    let dest = env::var("OUT_DIR").unwrap();
-    let mut file = File::create(&Path::new(&dest).join("gl_bindings.rs")).unwrap();
-    Registry::new(Api::Gl, (3, 2), Profile::Core, Fallbacks::All, ["GL_EXT_framebuffer_object"])
-        .write_bindings(gl_generator::GlobalGenerator, &mut file).unwrap();
-    let mut file = File::create(&Path::new(&dest).join("egl_bindings.rs")).unwrap();
-    Registry::new(Api::Egl, (1, 5), Profile::Core, Fallbacks::All, [])
-        .write_bindings(StaticStructGenerator, &mut file).unwrap();
-
-    // // Generate C header
-    // cheddar::Cheddar::new().expect("could not read manifest")
-    //     .module("api").expect("malformed module path")
-    //     .run_build("target/libservobridge.h");
-}
-
-fn android_main() {
     // Get the NDK path from NDK_HOME env.
     let ndk_path = env::var("ANDROID_NDK").ok().expect("Please set the ANDROID_NDK environment variable");
     let ndk_path = Path::new(&ndk_path);
@@ -121,4 +98,13 @@ fn android_main() {
     println!("cargo:rustc-link-search=native={}", out_dir);
     println!("cargo:rustc-link-lib=log");
     println!("cargo:rustc-link-lib=android");
+
+    // Generate GL bindings
+    let dest = env::var("OUT_DIR").unwrap();
+    let mut file = File::create(&Path::new(&dest).join("gl_bindings.rs")).unwrap();
+    Registry::new(Api::Gl, (3, 2), Profile::Core, Fallbacks::All, ["GL_EXT_framebuffer_object"])
+        .write_bindings(gl_generator::GlobalGenerator, &mut file).unwrap();
+    let mut file = File::create(&Path::new(&dest).join("egl_bindings.rs")).unwrap();
+    Registry::new(Api::Egl, (1, 5), Profile::Core, Fallbacks::All, [])
+        .write_bindings(StaticStructGenerator, &mut file).unwrap();
 }
