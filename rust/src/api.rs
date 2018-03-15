@@ -41,7 +41,7 @@ pub fn Java_org_mozilla_geckoview_LibServo_init(
     // let layout = ViewLayout::new(layout_obj);
     let layout = ViewLayout {
         /// Size of the view. Hardware pixels.
-        view_size: Size { width: 400, height: 400 },
+        view_size: Size { width: 1080, height: 1500 },
         margins: Margins { top: 0, right: 0, bottom: 0, left: 0 },
         position: Position { x: 0, y: 0 },
         hidpi_factor: 2.0,
