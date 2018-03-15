@@ -128,8 +128,11 @@ impl WakeupCallback {
     /// are available, and that perform_updates need to be called
     pub fn wakeup(&self) {
         debug!("api.rs::wakeup");
-        let env = self.jvm.get_env().unwrap();
+        // let env = self.jvm.get_env().unwrap();
+        let env = self.jvm.attach_current_thread().unwrap();
+        debug!("api.rs::wakeup 1");
         env.call_method(self.callback.as_obj(), "wakeup", "()V", &[]).unwrap();
+        debug!("api.rs::wakeup 2");
     }
 }
 

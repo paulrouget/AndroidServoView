@@ -29,7 +29,7 @@ public class GeckoSession {
     public void flush(){
       Log.w("servo", "java:flush");
       // Call https://developer.android.com/reference/android/opengl/GLSurfaceView.html#requestRender()
-      // mGLControls.flush();
+      mGLControls.flush();
     };
     public void onLoadStarted() {
       Log.w("servo", "java:onLoadStarted");
@@ -75,7 +75,7 @@ public class GeckoSession {
     Log.w("servo:version", mServo.version());
     mGLControls.executeInGLThread(new Runnable() {
       public void run() {
-        mServo.init("http://paulrouget.com", "/sdcard/servo/resources/", new WakeupCallback(), new ServoCallbacks());
+        mServo.init("https://servo.org", "/sdcard/servo/resources/", new WakeupCallback(), new ServoCallbacks());
       }
     });
   }

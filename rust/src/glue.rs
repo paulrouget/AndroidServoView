@@ -168,7 +168,7 @@ impl ServoGlue {
 
     pub fn erase(&mut self) -> ServoResult {
         info!("erase");
-        let url = ServoUrl::parse("about:blank").unwrap();
+        let url = ServoUrl::parse("https://servo.org").unwrap();
         let (sender, receiver) = ipc::channel().unwrap();
         self.servo.handle_events(vec![WindowEvent::NewBrowser(url, sender)]);
         let id = receiver.recv().unwrap();

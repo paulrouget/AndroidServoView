@@ -30,7 +30,7 @@ public class GeckoView extends FrameLayout implements GeckoSession.GLControls {
     Renderer r = new Renderer();
     mView.setRenderer(r);
     mView.setRenderMode(RENDERMODE_WHEN_DIRTY);
-    mView.setBackgroundColor(Color.RED);
+    // mView.setBackgroundColor(Color.RED);
     addView(mView, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
   }
 
