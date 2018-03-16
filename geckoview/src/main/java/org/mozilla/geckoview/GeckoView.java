@@ -11,10 +11,7 @@ import javax.microedition.khronos.egl.EGLConfig;
 
 import static android.opengl.GLSurfaceView.RENDERMODE_WHEN_DIRTY;
 
-public class GeckoView extends FrameLayout implements GeckoSession.GLControls {
-  public GeckoView(final Context context) {
-    super(context);
-  }
+public class GeckoView extends FrameLayout {
 
   private GLSurfaceView mView;
 
@@ -30,25 +27,22 @@ public class GeckoView extends FrameLayout implements GeckoSession.GLControls {
     Renderer r = new Renderer();
     mView.setRenderer(r);
     mView.setRenderMode(RENDERMODE_WHEN_DIRTY);
-    // mView.setBackgroundColor(Color.RED);
     addView(mView, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
   }
 
-  public void flush() {
+  public void requestRender() {
     mView.requestRender();
   }
 
-  public void executeInGLThread(Runnable r) {
+  public void queueEvent(Runnable r) {
     mView.queueEvent(r);
   }
 
   private GeckoSession mSession;
-
   public void setSession(GeckoSession session) {
     mSession = session;
-    mSession.setGLControl(this);
+    mSession.setView(this);
   }
-
   public GeckoSession getSession() {
     return mSession;
   }

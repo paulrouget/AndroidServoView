@@ -9,15 +9,10 @@ import android.util.Log;
 
 public class GeckoSession {
 
-  public interface GLControls {
-    public void flush();
-    public void executeInGLThread(Runnable r);
-  }
-
   static class WakeupCallback implements LibServo.WakeupCallback {
     public void wakeup(){
       Log.w("servo", "java:wakeup");
-      mGLControls.executeInGLThread(new Runnable() {
+      mView.queueEvent(new Runnable() {
         public void run() {
           mServo.performUpdates();
         }
@@ -28,8 +23,7 @@ public class GeckoSession {
   static class ServoCallbacks implements LibServo.ServoCallbacks {
     public void flush(){
       Log.w("servo", "java:flush");
-      // Call https://developer.android.com/reference/android/opengl/GLSurfaceView.html#requestRender()
-      mGLControls.flush();
+      mView.requestRender();
     };
     public void onLoadStarted() {
       Log.w("servo", "java:onLoadStarted");
@@ -63,9 +57,9 @@ public class GeckoSession {
   public static void preload(final @NonNull Context context, final @Nullable String[] geckoArgs, final @Nullable Bundle extras, final boolean multiprocess) {
   }
 
-  private static GLControls mGLControls;
-  public void setGLControl(GLControls controls) {
-    mGLControls = controls;
+  private static GeckoView mView;
+  public void setView(GeckoView view) {
+    mView = view;
   }
 
   public void onGLReady() {
@@ -73,7 +67,7 @@ public class GeckoSession {
     System.loadLibrary("c++_shared");
     mServo = new LibServo();
     Log.w("servo:version", mServo.version());
-    mGLControls.executeInGLThread(new Runnable() {
+    mView.queueEvent(new Runnable() {
       public void run() {
         mServo.init("https://servo.org", "/sdcard/servo/resources/", new WakeupCallback(), new ServoCallbacks());
       }
