@@ -71,7 +71,7 @@ pub fn Java_org_mozilla_geckoview_LibServo_resize(
 /// everytime wakeup is called.
 #[no_mangle]
 #[allow(non_snake_case)]
-pub fn Java_org_mozilla_geckoview_LibServo_performUpdates() {
+pub fn Java_org_mozilla_geckoview_LibServo_performUpdates(env: JNIEnv, _class: JClass) {
     debug!("api.rs::performUpdates");
     let mut res = ServoResult::UnexpectedError;
     SERVO.with(|s| {
@@ -85,8 +85,9 @@ pub fn Java_org_mozilla_geckoview_LibServo_performUpdates() {
 /// Load an URL. This needs to be a valid url.
 #[no_mangle]
 #[allow(non_snake_case)]
-pub fn Java_org_mozilla_geckoview_LibServo_loadUri(url: String) {
+pub fn Java_org_mozilla_geckoview_LibServo_loadUri(env: JNIEnv, _class: JClass, url: JString) {
     debug!("api.rs::loadUri");
+    let url = env.get_string(url).expect("Couldn't get java string").into();
     let mut res = ServoResult::UnexpectedError;
     SERVO.with(|s| {
         res = s.borrow_mut().as_mut().map(|ref mut s| {
@@ -99,7 +100,7 @@ pub fn Java_org_mozilla_geckoview_LibServo_loadUri(url: String) {
 /// Reload page.
 #[no_mangle]
 #[allow(non_snake_case)]
-pub fn Java_org_mozilla_geckoview_LibServo_reload() {
+pub fn Java_org_mozilla_geckoview_LibServo_reload(env: JNIEnv, _class: JClass) {
     debug!("api.rs::reload");
     let mut res = ServoResult::UnexpectedError;
     SERVO.with(|s| {
@@ -112,7 +113,7 @@ pub fn Java_org_mozilla_geckoview_LibServo_reload() {
 
 #[no_mangle]
 #[allow(non_snake_case)]
-pub fn Java_org_mozilla_geckoview_LibServo_goBack() {
+pub fn Java_org_mozilla_geckoview_LibServo_goBack(env: JNIEnv, _class: JClass) {
     debug!("api.rs::goBack");
     let mut res = ServoResult::UnexpectedError;
     SERVO.with(|s| {
@@ -125,7 +126,7 @@ pub fn Java_org_mozilla_geckoview_LibServo_goBack() {
 
 #[no_mangle]
 #[allow(non_snake_case)]
-pub fn Java_org_mozilla_geckoview_LibServo_goForward() {
+pub fn Java_org_mozilla_geckoview_LibServo_goForward(env: JNIEnv, _class: JClass) {
     debug!("api.rs::goForward");
     let mut res = ServoResult::UnexpectedError;
     SERVO.with(|s| {
