@@ -7,7 +7,7 @@ use servo::BrowserId;
 use servo::Servo;
 use servo::compositing::compositor_thread::EventLoopWaker;
 use servo::compositing::windowing::{MouseWindowEvent, WindowEvent, WindowMethods};
-use servo::euclid::{Point2D, ScaleFactor, Size2D, TypedPoint2D, TypedRect, TypedSize2D, TypedVector2D};
+use servo::euclid::{Length, Point2D, ScaleFactor, Size2D, TypedPoint2D, TypedRect, TypedSize2D, TypedVector2D};
 use servo::gl;
 use servo::ipc_channel::ipc;
 use servo::msg::constellation_msg::{Key, KeyModifiers, TraversalDirection};
@@ -21,10 +21,9 @@ use servo::style_traits::DevicePixel;
 use servo::style_traits::cursor::CursorKind;
 use servo::webrender_api;
 use servo;
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::ffi::{CStr, CString};
 use std::mem;
-use std::os::raw::c_char;
 use std::rc::Rc;
 
 thread_local! {
@@ -48,41 +47,34 @@ pub fn init(
     resources_path: String,
     wakeup: WakeupCallback,
     callbacks: HostCallbacks,
-    layout: ViewLayout) -> ServoResult {
+    width: u32, height: u32) -> ServoResult {
 
-    debug!("BAR0");
-    info!("Init: {:?}", layout);
+    info!("Init");
 
-    debug!("BAR1");
     set_resources_path(Some(resources_path));
 
-    debug!("BAR2");
     let opts = opts::default_opts();
     opts::set_defaults(opts);
 
-    debug!("BAR3");
     gl.clear_color(1.0, 1.0, 1.0, 1.0);
     gl.clear(gl::COLOR_BUFFER_BIT);
     gl.finish();
 
-    debug!("BAR4");
     let callbacks = Rc::new(ServoCallbacks {
         waker: Box::new(RemoteEventLoopWaker(wakeup)),
         gl: gl.clone(),
         host_callbacks: callbacks,
-        layout: RefCell::new(layout),
+        width: Cell::new(width),
+        height: Cell::new(height),
     });
 
-    debug!("BAR5");
     let mut servo = servo::Servo::new(callbacks.clone());
 
-    debug!("BAR6");
     let url = ServoUrl::parse(&url).unwrap();
     let (sender, receiver) = ipc::channel().unwrap();
     servo.handle_events(vec![WindowEvent::NewBrowser(url, sender)]);
     let browser_id = receiver.recv().unwrap();
     servo.handle_events(vec![WindowEvent::SelectBrowser(browser_id)]);
-    debug!("BAR7");
 
     SERVO.with(|s| {
         *s.borrow_mut() = Some(ServoGlue {
@@ -101,18 +93,16 @@ pub fn init(
 impl ServoGlue {
 
     pub fn perform_updates(&mut self) -> ServoResult {
-        info!("perform_updates");
+        debug!("perform_updates");
         let events = mem::replace(&mut self.events, Vec::new());
         self.servo.handle_events(events);
         ServoResult::Ok
     }
 
-    pub fn load_url(&mut self, url: *const c_char) -> ServoResult {
-        info!("load_url");
-        let url = unsafe { CStr::from_ptr(url) };
-        url.to_str()
-           .map_err(|_| ServoResult::CantReadStr)
-           .and_then(|txt| ServoUrl::parse(txt).map_err(|_| ServoResult::CantParseUrl))
+    pub fn load_uri(&mut self, url: String) -> ServoResult {
+        info!("load_uri");
+        ServoUrl::parse(&url)
+           .map_err(|_| ServoResult::CantParseUrl)
            .map(|url| self.servo.handle_events(vec![WindowEvent::LoadUrl(self.browser_id, url)]))
            .map(|_| ServoResult::Ok)
            .unwrap_or_else(|err| err)
@@ -138,9 +128,10 @@ impl ServoGlue {
         ServoResult::Ok
     }
 
-    pub fn resize(&mut self, layout: ViewLayout) -> ServoResult {
+    pub fn resize(&mut self, width: u32, height: u32) -> ServoResult {
         info!("resize");
-        *self.callbacks.layout.borrow_mut() = layout;
+        self.callbacks.width.set(width);
+        self.callbacks.height.set(height);
         self.servo.handle_events(vec![WindowEvent::Resize]);
         ServoResult::Ok
     }
@@ -199,11 +190,12 @@ struct ServoCallbacks {
     waker: Box<EventLoopWaker>,
     gl: Rc<gl::Gl>,
     host_callbacks: HostCallbacks,
-    layout: RefCell<ViewLayout>,
+    width: Cell<u32>,
+    height: Cell<u32>,
 }
 
 impl WindowMethods for ServoCallbacks {
-    fn prepare_for_composite(&self, _width: usize, _height: usize) -> bool {
+    fn prepare_for_composite(&self, _width: Length<u32, DevicePixel>, _height: Length<u32, DevicePixel>) -> bool {
         info!("WindowMethods::prepare_for_composite");
         true
     }
@@ -230,12 +222,13 @@ impl WindowMethods for ServoCallbacks {
 
     fn hidpi_factor(&self) -> ScaleFactor<f32, DeviceIndependentPixel, DevicePixel> {
         info!("WindowMethods::hidpi_factor");
-        ScaleFactor::new(self.layout.borrow().hidpi_factor)
+        // FIXME
+        ScaleFactor::new(2.0)
     }
 
     fn framebuffer_size(&self) -> TypedSize2D<u32, DevicePixel> {
         info!("WindowMethods::framebuffer_size");
-        TypedSize2D::new(self.layout.borrow().view_size.width, self.layout.borrow().view_size.height)
+        TypedSize2D::new(self.width.get(), self.height.get())
     }
 
     fn window_rect(&self) -> TypedRect<u32, DevicePixel> {
@@ -243,22 +236,9 @@ impl WindowMethods for ServoCallbacks {
         TypedRect::new(TypedPoint2D::new(0, 0), self.framebuffer_size())
     }
 
-    fn size(&self) -> TypedSize2D<f32, DeviceIndependentPixel> {
-        info!("WindowMethods::size");
-        let l = self.layout.borrow();
-        let width = l.view_size.width as f32;
-        let height = l.view_size.height as f32;
-        let factor = l.hidpi_factor;
-        TypedSize2D::new(width / factor, height / factor)
-    }
-
-    fn client_window(&self, _id: BrowserId) -> (Size2D<u32>, Point2D<i32>) {
+    fn client_window(&self, _id: BrowserId) -> (TypedSize2D<u32, DevicePixel>, TypedPoint2D<i32, DevicePixel>) {
         info!("WindowMethods::client_window");
-        let l = self.layout.borrow();
-        let factor = l.hidpi_factor;
-        let width: u32 = (l.view_size.width as f32 / factor) as u32;
-        let height: u32 = (l.view_size.height as f32 / factor) as u32;
-        (Size2D::new(width, height), Point2D::new(0, 0))
+        (self.framebuffer_size(), TypedPoint2D::new(0, 0))
     }
 
     fn load_start(&self, _id: BrowserId) {
@@ -277,32 +257,31 @@ impl WindowMethods for ServoCallbacks {
         let can_go_forward = current < entries.len() - 1;
         self.host_callbacks.on_history_changed(can_go_back, can_go_forward);
         let url = entries[current].url.to_string();
-        let url = CString::new(url).unwrap();
-        let url_ptr = url.as_ptr();
-        mem::forget(url);
-        // FIXME: when to free url_ptr?
-        self.host_callbacks.on_url_changed(url_ptr);
+        self.host_callbacks.on_url_changed(url);
     }
 
-    fn screen_size(&self, id: BrowserId) -> Size2D<u32> {
+    fn screen_size(&self, id: BrowserId) -> TypedSize2D<u32, DevicePixel> {
         info!("WindowMethods::screen_size");
         self.client_window(id).0
     }
 
-    fn screen_avail_size(&self, id: BrowserId) -> Size2D<u32> {
+    fn screen_avail_size(&self, id: BrowserId) -> TypedSize2D<u32, DevicePixel> {
         info!("WindowMethods::screen_avail_size");
         self.screen_size(id)
     }
 
+    fn set_page_title(&self, _id: BrowserId, title: Option<String>) {
+        self.host_callbacks.on_title_changed(title.unwrap_or("No Title".to_string()));
+    }
 
     fn handle_panic(&self, _: BrowserId, reason: String, _backtrace: Option<String>) {
         debug!("PANIC!!! {}", reason);
     }
+
     fn allow_navigation(&self, _id: BrowserId, _url: ServoUrl, chan: ipc::IpcSender<bool>) { chan.send(true).ok(); }
-    fn set_inner_size(&self, _id: BrowserId, _size: Size2D<u32>) {}
-    fn set_position(&self, _id: BrowserId, _point: Point2D<i32>) {}
+    fn set_inner_size(&self, _id: BrowserId, _size: TypedSize2D<u32, DevicePixel>) {}
+    fn set_position(&self, _id: BrowserId, _point: TypedPoint2D<i32, DevicePixel>) {}
     fn set_fullscreen_state(&self, _id: BrowserId, _state: bool) {}
-    fn set_page_title(&self, _id: BrowserId, _title: Option<String>) {}
     fn status(&self, _id: BrowserId, _status: Option<String>) {}
     fn load_error(&self, _id: BrowserId, _: NetError, _url: String) {}
     fn head_parsed(&self, _id: BrowserId) {}

@@ -8,10 +8,14 @@ import android.os.Bundle;
 import android.util.Log;
 
 public class GeckoSession {
+  private static final String LOGTAG = "ServoView";
+
+  private static String mUrl;
+  private static String mFutureUri = "about:blank";
 
   static class WakeupCallback implements LibServo.WakeupCallback {
     public void wakeup(){
-      Log.w("servo", "java:wakeup");
+      Log.w(LOGTAG, "java:wakeup");
       mView.queueEvent(new Runnable() {
         public void run() {
           mServo.performUpdates();
@@ -20,28 +24,47 @@ public class GeckoSession {
     };
   }
 
-  static class ServoCallbacks implements LibServo.ServoCallbacks {
-    public void flush(){
-      Log.w("servo", "java:flush");
+  class ServoCallbacks implements LibServo.ServoCallbacks {
+    public void flush() {
+      Log.w(LOGTAG, "java:flush");
       mView.requestRender();
     };
     public void onLoadStarted() {
-      Log.w("servo", "java:onLoadStarted");
+      Log.w(LOGTAG, "java:onLoadStarted");
+      mView.post(new Runnable() {
+        public void run() {
+          // FIXME: mFutureUri
+          // GeckoSession.this.getProgressDelegate().onPageStart(GeckoSession.this, mUrl != null ? mUrl : mFutureUri);
+        }
+      });
     };
     public void onLoadEnded() {
-      Log.w("servo", "java:onLoadEnded");
-
+      Log.w(LOGTAG, "java:onLoadEnded");
+      mView.post(new Runnable() {
+        public void run() {
+          // FIXME: no error support yet
+          // GeckoSession.this.getProgressDelegate().onPageStop(GeckoSession.this, true);
+        }
+      });
     };
-    public void onTitleChanged(String title) {
-      Log.w("servo", "java:onTitleChanged: " + title);
-
+    public void onTitleChanged(final String title) {
+      Log.w(LOGTAG, "java:onTitleChanged: " + title);
+      mView.post(new Runnable() {
+        public void run() {
+          GeckoSession.this.getContentDelegate().onTitleChange(GeckoSession.this, title);
+        }
+      });
     };
-    public void onUrlChanged(String url) {
-      Log.w("servo", "java:onUrlChanged: " + url);
-
+    public void onUrlChanged(final String url) {
+      Log.w(LOGTAG, "java:onUrlChanged: " + url);
+      mView.post(new Runnable() {
+        public void run() {
+          mUrl = url;
+        }
+      });
     };
     public void onHistoryChanged(boolean canGoBack, boolean canGoForward) {
-      Log.w("servo", "java:onHistoryChanged: " + canGoBack + ", " + canGoForward);
+      Log.w(LOGTAG, "java:onHistoryChanged: " + canGoBack + ", " + canGoForward);
     };
   }
 
@@ -63,15 +86,23 @@ public class GeckoSession {
   }
 
   public void onGLReady() {
-    Log.w("servo", "Tryyying to load library");
+    Log.w(LOGTAG, "Loading libservo");
     System.loadLibrary("c++_shared");
     mServo = new LibServo();
-    Log.w("servo:version", mServo.version());
+    Log.w(LOGTAG, mServo.version());
+    final WakeupCallback c1 = new WakeupCallback();
+    final ServoCallbacks c2 = new ServoCallbacks();
     mView.queueEvent(new Runnable() {
       public void run() {
-        mServo.init("https://servo.org", "/sdcard/servo/resources/", new WakeupCallback(), new ServoCallbacks());
+        int width = mView.getWidth();
+        int height = mView.getHeight();
+        mServo.init(mFutureUri, "/sdcard/servo/resources/", c1, c2, width, height);
       }
     });
+  }
+
+  public void onViewResized(int width, int height) {
+    mServo.resize(width, height);
   }
 
   /**
@@ -333,34 +364,63 @@ public class GeckoSession {
    *
    */
 
-  public void loadUri(String uri) {
-  }
   public void loadUri(Uri uri) {
+    this.loadUri(uri.toString());
+  }
+  public void loadUri(String uri) {
+    // uri = "https://servo.org";
+    Log.w(LOGTAG, "GeckoSession::loadUri()");
+    if (mServo != null)  {
+      mServo.loadUri(uri);
+    } else {
+      mFutureUri = uri;
+    }
   }
   public boolean isOpen() {
+    Log.w(LOGTAG, "GeckoSession::isOpen()");
     return true;
   }
   public void openWindow(final @Nullable Context appContext) {
+    Log.w(LOGTAG, "GeckoSession::openWindow()");
   }
   public void closeWindow() {
+    Log.w(LOGTAG, "GeckoSession::closeWindow()");
   }
   public void reload() {
+    Log.w(LOGTAG, "GeckoSession::reload()");
+    mServo.reload();
   }
   public void stop() {
+    Log.w(LOGTAG, "GeckoSession::stop()");
+    // FIXME
   }
   public void goBack() {
+    Log.w(LOGTAG, "GeckoSession::goBack()");
+    mServo.goBack();
   }
   public void goForward() {
+    Log.w(LOGTAG, "GeckoSession::goForward()");
+    mServo.goForward();
   }
   public void setActive(boolean active) {
+    Log.w(LOGTAG, "GeckoSession::setActive()");
+    // FIXME
   }
   public void importScript(final String url) {
+    Log.w(LOGTAG, "GeckoSession::importScript()");
+    // FIXME
   }
   public void exitFullScreen() {
+    Log.w(LOGTAG, "GeckoSession::exitFullScreen()");
+    // FIXME
   }
   public void enableTrackingProtection(int categories) {
+    Log.w(LOGTAG, "GeckoSession::enableTrackingProtection()");
+    // FIXME
   }
   public void disableTrackingProtection() {
+    Log.w(LOGTAG, "GeckoSession::disableTrackingProtection()");
+    // FIXME
   }
 
   public interface Response<T> {

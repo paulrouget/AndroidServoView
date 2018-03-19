@@ -8,6 +8,7 @@ import android.opengl.GLSurfaceView;
 import android.view.ViewGroup;
 import javax.microedition.khronos.opengles.GL10;
 import javax.microedition.khronos.egl.EGLConfig;
+import android.util.Log;
 
 import static android.opengl.GLSurfaceView.RENDERMODE_WHEN_DIRTY;
 
@@ -52,6 +53,9 @@ public class GeckoView extends FrameLayout {
     }
 
     public void onSurfaceChanged(GL10 gl, int width, int height) {
+      if (mSession != null) {
+        mSession.onViewResized(width, height);
+      }
     }
 
     public void onSurfaceCreated(GL10 gl, EGLConfig config) {
