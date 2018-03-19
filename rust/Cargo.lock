@@ -34,7 +34,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "android_logger"
 version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "android_log-sys 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2610,7 +2609,7 @@ dependencies = [
 name = "servobridge"
 version = "0.1.0"
 dependencies = [
- "android_logger 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "android_logger 0.4.0",
  "gl_generator 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "jni 0.9.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.39 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -3328,7 +3327,6 @@ dependencies = [
 "checksum android_glue 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)" = "000444226fcff248f2bc4c7625be32c63caccfecc2723a2b9f78a7487a49c407"
 "checksum android_injected_glue 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)" = "80b9e34fcbf29c0563547cb2ecce9b49504597cad6166769b1e4efb45c6c2951"
 "checksum android_log-sys 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "b8052e2d8aabbb8d556d6abbcce2a22b9590996c5f849b9c7ce4544a2e3b984e"
-"checksum android_logger 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "c16ec2646e12ed420fc62a5a2a1b46cf63fbaf0b943c48b81b06255763779ca9"
 "checksum antidote 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "34fde25430d87a9388dadbe6e34d7f72a462c8b43ac8d309b42b0a8505d7e2a5"
 "checksum app_units 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)" = "c4720c83543de184d9f6add2fdb8e8031543497b8506620884c16e125b493c09"
 "checksum arrayvec 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)" = "2f0ef4a9820019a0c91d918918c93dc71d469f581a49b47ddc1d285d4270bbe2"

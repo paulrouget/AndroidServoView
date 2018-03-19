@@ -18,3 +18,7 @@ android_logger = "0.4"
 
 [build-dependencies]
 gl_generator = "0.6"
+
+[patch.crates-io]
+android_logger = { path = "../../android_logger-rs/" }
+
