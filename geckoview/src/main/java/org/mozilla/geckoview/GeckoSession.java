@@ -34,7 +34,7 @@ public class GeckoSession {
       mView.post(new Runnable() {
         public void run() {
           // FIXME: mFutureUri
-          // GeckoSession.this.getProgressDelegate().onPageStart(GeckoSession.this, mUrl != null ? mUrl : mFutureUri);
+          GeckoSession.this.getProgressDelegate().onPageStart(GeckoSession.this, mUrl != null ? mUrl : mFutureUri);
         }
       });
     };
@@ -43,7 +43,7 @@ public class GeckoSession {
       mView.post(new Runnable() {
         public void run() {
           // FIXME: no error support yet
-          // GeckoSession.this.getProgressDelegate().onPageStop(GeckoSession.this, true);
+          GeckoSession.this.getProgressDelegate().onPageStop(GeckoSession.this, true);
         }
       });
     };
@@ -367,14 +367,17 @@ public class GeckoSession {
   public void loadUri(Uri uri) {
     this.loadUri(uri.toString());
   }
-  public void loadUri(String uri) {
-    // uri = "https://servo.org";
+  public void loadUri(final String uri) {
     Log.w(LOGTAG, "GeckoSession::loadUri()");
-    if (mServo != null)  {
-      mServo.loadUri(uri);
-    } else {
-      mFutureUri = uri;
-    }
+    mView.queueEvent(new Runnable() {
+      public void run() {
+        if (mServo != null)  {
+          mServo.loadUri(uri);
+        } else {
+          mFutureUri = uri;
+        }
+      }
+    });
   }
   public boolean isOpen() {
     Log.w(LOGTAG, "GeckoSession::isOpen()");
@@ -388,7 +391,13 @@ public class GeckoSession {
   }
   public void reload() {
     Log.w(LOGTAG, "GeckoSession::reload()");
-    mServo.reload();
+    mView.queueEvent(new Runnable() {
+      public void run() {
+        if (mServo != null)  {
+          mServo.reload();
+        }
+      }
+    });
   }
   public void stop() {
     Log.w(LOGTAG, "GeckoSession::stop()");
@@ -396,11 +405,23 @@ public class GeckoSession {
   }
   public void goBack() {
     Log.w(LOGTAG, "GeckoSession::goBack()");
-    mServo.goBack();
+    mView.queueEvent(new Runnable() {
+      public void run() {
+        if (mServo != null)  {
+          mServo.goBack();
+        }
+      }
+    });
   }
   public void goForward() {
     Log.w(LOGTAG, "GeckoSession::goForward()");
-    mServo.goForward();
+    mView.queueEvent(new Runnable() {
+      public void run() {
+        if (mServo != null)  {
+          mServo.goForward();
+        }
+      }
+    });
   }
   public void setActive(boolean active) {
     Log.w(LOGTAG, "GeckoSession::setActive()");

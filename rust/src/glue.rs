@@ -100,7 +100,7 @@ impl ServoGlue {
     }
 
     pub fn load_uri(&mut self, url: String) -> ServoResult {
-        info!("load_uri");
+        info!("load_uri: {}", url);
         ServoUrl::parse(&url)
            .map_err(|_| ServoResult::CantParseUrl)
            .map(|url| self.servo.handle_events(vec![WindowEvent::LoadUrl(self.browser_id, url)]))
