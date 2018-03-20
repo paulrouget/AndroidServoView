@@ -60,11 +60,18 @@ public class GeckoSession {
       mView.post(new Runnable() {
         public void run() {
           mUrl = url;
+          GeckoSession.this.mNavigationDelegate.onLocationChange(GeckoSession.this, url);
         }
       });
     };
-    public void onHistoryChanged(boolean canGoBack, boolean canGoForward) {
+    public void onHistoryChanged(final boolean canGoBack, final boolean canGoForward) {
       Log.w(LOGTAG, "java:onHistoryChanged: " + canGoBack + ", " + canGoForward);
+      mView.post(new Runnable() {
+        public void run() {
+          GeckoSession.this.mNavigationDelegate.onCanGoBack(GeckoSession.this, canGoBack);
+          GeckoSession.this.mNavigationDelegate.onCanGoForward(GeckoSession.this, canGoForward);
+        }
+      });
     };
   }
 
@@ -218,6 +225,9 @@ public class GeckoSession {
         return sMap[value];
       }
     }
+    void onLocationChange(GeckoSession session, String url);
+    void onCanGoBack(GeckoSession session, boolean canGoBack);
+    void onCanGoForward(GeckoSession session, boolean canGoForward);
     boolean onLoadUri(GeckoSession session, String uri, TargetWindow where);
     void onNewSession(GeckoSession session, String uri, Response<GeckoSession> response);
   }
