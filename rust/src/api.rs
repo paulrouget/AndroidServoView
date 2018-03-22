@@ -140,6 +140,26 @@ pub fn Java_org_mozilla_geckoview_LibServo_goForward(env: JNIEnv, _class: JClass
     res; // FIXME
 }
 
+#[no_mangle]
+#[allow(non_snake_case)]
+pub fn Java_org_mozilla_geckoview_LibServo_scroll(
+    env: JNIEnv, _: JClass,
+    dx: jint, dy: jint, x: jint, y: jint, state: jint) {
+    let mut res = ServoResult::UnexpectedError;
+    let state = match state {
+        0 => ScrollState::Start,
+        1 => ScrollState::Move,
+        2 => ScrollState::End,
+        _ => return,
+    };
+    SERVO.with(|s| {
+        res = s.borrow_mut().as_mut().map(|ref mut s| {
+            debug!("api.rs::scroll({},{},{},{},{:?}", dx as i32, dy as i32, x as u32, y as u32, state);
+            s.scroll(dx as i32, dy as i32, x as u32, y as u32, state)
+        }).unwrap_or(ServoResult::WrongThread)
+    });
+    res; // FIXME
+}
 
 /// Generic result errors
 #[repr(C)]
@@ -154,6 +174,7 @@ pub enum ServoResult {
 
 /// Scroll state
 #[repr(C)]
+#[derive(Debug)]
 pub enum ScrollState {
     Start,
     Move,
@@ -285,33 +306,11 @@ pub struct Position {
 }
 
 // #[no_mangle]
-// pub extern "C" fn scroll(dx: i32, dy: i32, x: u32, y: u32, state: ScrollState) -> ServoResult {
-//     let mut res = ServoResult::UnexpectedError;
-//     SERVO.with(|s| {
-//         res = s.borrow_mut().as_mut().map(|ref mut s| {
-//             s.scroll(dx, dy, x, y, state)
-//         }).unwrap_or(ServoResult::WrongThread)
-//     });
-//     res
-// }
-
-// #[no_mangle]
 // pub extern "C" fn click(x: u32, y: u32) -> ServoResult {
 //     let mut res = ServoResult::UnexpectedError;
 //     SERVO.with(|s| {
 //         res = s.borrow_mut().as_mut().map(|ref mut s| {
 //             s.click(x, y)
-//         }).unwrap_or(ServoResult::WrongThread)
-//     });
-//     res
-// }
-
-// #[no_mangle]
-// pub extern "C" fn erase() -> ServoResult {
-//     let mut res = ServoResult::UnexpectedError;
-//     SERVO.with(|s| {
-//         res = s.borrow_mut().as_mut().map(|ref mut s| {
-//             s.erase()
 //         }).unwrap_or(ServoResult::WrongThread)
 //     });
 //     res

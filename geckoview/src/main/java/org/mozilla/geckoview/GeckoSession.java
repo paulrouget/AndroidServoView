@@ -8,7 +8,7 @@ import android.os.Bundle;
 import android.util.Log;
 
 public class GeckoSession {
-  private static final String LOGTAG = "ServoView";
+  public static final String LOGTAG = "ServoView";
 
   private static String mUrl;
   private static String mFutureUri = "about:blank";
@@ -429,6 +429,17 @@ public class GeckoSession {
       public void run() {
         if (mServo != null)  {
           mServo.goForward();
+        }
+      }
+    });
+  }
+  public void scroll(final int deltaX, final int deltaY, final int x, final int y, final int phase) {
+    Log.w(LOGTAG, "GeckoSession::scroll(" + deltaX + "," + deltaY + "," + phase + ")");
+    mView.queueEvent(new Runnable() {
+      public void run() {
+        if (mServo != null)  {
+          mServo.scroll(deltaX, deltaY, x, y, phase);
+          mServo.performUpdates();
         }
       }
     });

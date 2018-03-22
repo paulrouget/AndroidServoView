@@ -10,6 +10,7 @@ public class LibServo {
     public native void goBack();
     public native void goForward();
     public native void loadUri(String uri);
+    public native void scroll(int dx, int dy, int x, int y, int phase);
 
     public LibServo() {
         System.loadLibrary("c++_shared");

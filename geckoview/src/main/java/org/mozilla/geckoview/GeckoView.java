@@ -9,12 +9,18 @@ import android.view.ViewGroup;
 import javax.microedition.khronos.opengles.GL10;
 import javax.microedition.khronos.egl.EGLConfig;
 import android.util.Log;
+import android.view.MotionEvent;
+import android.view.InputDevice;
+import android.view.GestureDetector;
+import android.widget.OverScroller;
+import android.view.Choreographer;
 
 import static android.opengl.GLSurfaceView.RENDERMODE_WHEN_DIRTY;
 
-public class GeckoView extends FrameLayout {
+public class GeckoView extends FrameLayout implements GestureDetector.OnGestureListener, Choreographer.FrameCallback {
 
   private GLSurfaceView mView;
+  private long mLastDownTime;
 
   public GeckoView(final Context context, final AttributeSet attrs) {
     super(context, attrs);
@@ -29,6 +35,8 @@ public class GeckoView extends FrameLayout {
     mView.setRenderer(r);
     mView.setRenderMode(RENDERMODE_WHEN_DIRTY);
     addView(mView, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+    mGestureDetector = new GestureDetector(this);
+    mScroller = new OverScroller(context);
   }
 
   public void requestRender() {
@@ -62,4 +70,96 @@ public class GeckoView extends FrameLayout {
       mSession.onGLReady();
     }
   }
+
+  private GestureDetector mGestureDetector;
+  private OverScroller mScroller;
+  private int mLastY = 0;
+  private int mCurY = 0;
+  private int mPageWidth = 80000;
+  private int mPageHeight = 80000;
+  private boolean mFlinging = false;
+
+  public void doFrame(long frameTimeNanos) {
+    Log.w(GeckoSession.LOGTAG, "doFrame");
+
+    if (mScroller.isFinished() && mFlinging) {
+      Log.w(GeckoSession.LOGTAG, "FLING OVER");
+      mFlinging = false;
+      mSession.scroll(0, 0, 0, 0, 2);
+      return;
+    }
+
+    if (mFlinging) {
+      mScroller.computeScrollOffset();
+      Log.w(GeckoSession.LOGTAG, "COMPUTE:" + mScroller.getCurrY());
+      mCurY = mScroller.getCurrY();
+    }
+
+    int delta = mCurY - mLastY;
+
+    mLastY = mCurY;
+
+    Log.w(GeckoSession.LOGTAG, "DELTA:" + delta);
+
+    if (delta != 0) {
+      mSession.scroll(0, delta, 0, 0, 1);
+    }
+
+    Choreographer.getInstance().postFrameCallback(this);
+  }
+
+  public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
+    Log.w(GeckoSession.LOGTAG, "ONFLING ");
+    // FIXME: boundaries
+    // https://github.com/servo/servo/issues/20361
+    mFlinging = true;
+    // FIXME: magic value
+    mCurY = 40000;
+    mLastY = mCurY;
+    mScroller.fling(0, mCurY, (int)velocityX, (int)velocityY, 0, mPageWidth, 0, mPageHeight);
+    return true;
+  }
+
+  public boolean onDown(MotionEvent e) {
+    mScroller.forceFinished(true);
+    return true;
+  }
+
+  public boolean onTouchEvent(final MotionEvent e) {
+    mGestureDetector.onTouchEvent(e);
+
+    int action = e.getActionMasked();
+    switch(action) {
+      case (MotionEvent.ACTION_DOWN):
+        Log.w(GeckoSession.LOGTAG, "SCROLL START");
+        mCurY = (int)e.getY();
+        mLastY = mCurY;
+        mScroller.forceFinished(true);
+        mSession.scroll(0, 0, 0, 0, 0);
+        Choreographer.getInstance().postFrameCallback(this);
+        return true;
+      case (MotionEvent.ACTION_MOVE):
+        mCurY = (int)e.getY();
+        return true;
+      case (MotionEvent.ACTION_UP):
+      case (MotionEvent.ACTION_CANCEL):
+        Log.w(GeckoSession.LOGTAG, "SCROLL END");
+        if (!mFlinging) {
+          mSession.scroll(0, 0, 0, 0, 2);
+          Choreographer.getInstance().removeFrameCallback(this);
+        }
+        return true;
+      default:
+        return true;
+    }
+  }
+
+  public boolean onSingleTapUp(MotionEvent e) {
+    // mSession.click(e.getX(), e.getY());
+    return false;
+  }
+
+  public void onLongPress(MotionEvent e) { } 
+  public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX, float distanceY) { return true; }
+  public void onShowPress(MotionEvent e) { }
 }

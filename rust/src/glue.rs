@@ -146,7 +146,7 @@ impl ServoGlue {
             ScrollState::Canceled => TouchEventType::Cancel,
         };
         let event = WindowEvent::Scroll(scroll_location, TypedPoint2D::new(x as i32, y as i32), phase);
-        self.servo.handle_events(vec![event]);
+        self.events.push(event);
         ServoResult::Ok
     }
 
@@ -156,22 +156,6 @@ impl ServoGlue {
         self.servo.handle_events(vec![event]);
         ServoResult::Ok
     }
-
-    pub fn erase(&mut self) -> ServoResult {
-        info!("erase");
-        let url = ServoUrl::parse("https://servo.org").unwrap();
-        let (sender, receiver) = ipc::channel().unwrap();
-        self.servo.handle_events(vec![WindowEvent::NewBrowser(url, sender)]);
-        let id = receiver.recv().unwrap();
-        let event = WindowEvent::SelectBrowser(id);
-        self.servo.handle_events(vec![event]);
-        let last_id = self.browser_id;
-        self.browser_id = id;
-        let event = WindowEvent::CloseBrowser(last_id);
-        self.servo.handle_events(vec![event]);
-        ServoResult::Ok
-    }
-
 }
 
 
