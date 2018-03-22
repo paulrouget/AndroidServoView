@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-use android_logger;
+use android_logger::{self, Filter};
 use gl_glue;
 use glue::{self, SERVO};
 use jni::JNIEnv;
@@ -31,7 +31,10 @@ pub fn Java_org_mozilla_geckoview_LibServo_init(
     callbacks_obj: JObject,
     width: jint, height: jint) {
 
-    android_logger::init_once(Level::Debug);
+    android_logger::init_once(
+        Filter::default().with_min_level(Level::Debug)
+                         .with_allowed_module_path("servobridge::glue")
+                         .with_allowed_module_path("servobridge::api"));
 
     debug!("api.rs::init");
 
