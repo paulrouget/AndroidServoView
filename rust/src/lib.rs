@@ -3,7 +3,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 extern crate jni;
-#[macro_use] extern crate libc;
+extern crate libc;
 #[macro_use] extern crate log;
 extern crate android_logger;
 extern crate servo;

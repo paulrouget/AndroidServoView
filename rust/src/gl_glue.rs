@@ -55,28 +55,3 @@ pub mod egl {
         }
     }
 }
-
-#[cfg(target_os = "macos")]
-pub mod gl {
-    use servo::gl;
-    use std::os::raw::c_void;
-    use std::rc::Rc;
-    use std::str;
-    use core_foundation::base::TCFType;
-    use core_foundation::string::CFString;
-    use core_foundation::bundle::{CFBundleGetBundleWithIdentifier, CFBundleGetFunctionPointerForName};
-
-    #[cfg(target_os = "macos")]
-    pub fn init() -> Rc<gl::Gl> {
-        info!("init_gl");
-        unsafe {
-            gl::GlFns::load_with(|addr| {
-                let symbol_name: CFString = str::FromStr::from_str(addr).unwrap();
-                let framework_name: CFString = str::FromStr::from_str("com.apple.opengl").unwrap();
-                let framework = CFBundleGetBundleWithIdentifier(framework_name.as_concrete_TypeRef());
-                let symbol = CFBundleGetFunctionPointerForName(framework, symbol_name.as_concrete_TypeRef());
-                symbol as *const c_void
-            })
-        }
-    }
-}

@@ -7,22 +7,18 @@ use servo::BrowserId;
 use servo::Servo;
 use servo::compositing::compositor_thread::{EmbedderMsg, EventLoopWaker};
 use servo::compositing::windowing::{EmbedderCoordinates, AnimationState, MouseWindowEvent, WindowEvent, WindowMethods};
-use servo::euclid::{Length, Point2D, ScaleFactor, Size2D, TypedPoint2D, TypedRect, TypedSize2D, TypedVector2D};
+use servo::euclid::{Length, TypedScale, TypedPoint2D, TypedSize2D, TypedVector2D};
 use servo::gl;
 use servo::ipc_channel::ipc;
-use servo::msg::constellation_msg::{Key, KeyModifiers, TraversalDirection};
-use servo::net_traits::net_error_list::NetError;
-use servo::script_traits::{LoadData, MouseButton, TouchEventType};
+use servo::msg::constellation_msg::TraversalDirection;
+use servo::script_traits::{MouseButton, TouchEventType};
 use servo::servo_config::opts;
 use servo::servo_config::resource_files::set_resources_path;
-use servo::servo_geometry::DeviceIndependentPixel;
 use servo::servo_url::ServoUrl;
 use servo::style_traits::DevicePixel;
-use servo::style_traits::cursor::CursorKind;
 use servo::webrender_api;
 use servo;
 use std::cell::{Cell, RefCell};
-use std::ffi::{CStr, CString};
 use std::mem;
 use std::rc::Rc;
 
@@ -162,8 +158,6 @@ impl ServoGlue {
     pub fn handle_servo_events(&mut self) {
         for event in self.servo.get_events() {
             match event {
-                EmbedderMsg::Status(_browser_id, status) => {
-                },
                 EmbedderMsg::ChangePageTitle(_browser_id, title) => {
                     let fallback_title: String = if let Some(ref current_url) = self.current_url {
                         current_url.to_string()
@@ -177,20 +171,10 @@ impl ServoGlue {
                     let title = format!("{} - Servo", title);
                     self.callbacks.host_callbacks.on_title_changed(title);
                 }
-                EmbedderMsg::MoveTo(_browser_id, point) => { }
-                EmbedderMsg::ResizeTo(_browser_id, size) => { }
                 EmbedderMsg::AllowNavigation(_browser_id, _url, response_chan) => {
                     if let Err(e) = response_chan.send(true) {
                         warn!("Failed to send allow_navigation() response: {}", e);
                     };
-                }
-                EmbedderMsg::KeyEvent(browser_id, ch, key, state, modified) => {
-                }
-                EmbedderMsg::SetCursor(cursor) => {
-                }
-                EmbedderMsg::NewFavicon(_browser_id, url) => {
-                }
-                EmbedderMsg::HeadParsed(_browser_id, ) => {
                 }
                 EmbedderMsg::HistoryChanged(_browser_id, entries, current) => {
                     let can_go_back = current > 0;
@@ -199,17 +183,22 @@ impl ServoGlue {
                     self.callbacks.host_callbacks.on_url_changed(entries[current].url.clone().to_string());
                     self.current_url = Some(entries[current].url.clone());
                 }
-                EmbedderMsg::SetFullscreenState(_browser_id, state) => {
-                }
                 EmbedderMsg::LoadStart(_browser_id) => {
                     self.callbacks.host_callbacks.on_load_started();
                 }
                 EmbedderMsg::LoadComplete(_browser_id) => {
                     self.callbacks.host_callbacks.on_load_ended();
                 }
-                EmbedderMsg::Shutdown => {
-                },
-                EmbedderMsg::Panic(_browser_id, _reason, _backtrace) => {
+                EmbedderMsg::Status(..) |
+                EmbedderMsg::MoveTo(..) |
+                EmbedderMsg::ResizeTo(..) |
+                EmbedderMsg::KeyEvent(..) |
+                EmbedderMsg::SetCursor(..) |
+                EmbedderMsg::NewFavicon(..) |
+                EmbedderMsg::HeadParsed(..) |
+                EmbedderMsg::SetFullscreenState(..) |
+                EmbedderMsg::Shutdown |
+                EmbedderMsg::Panic(..) => {
                 }
             }
         }
@@ -275,7 +264,7 @@ impl WindowMethods for ServoCallbacks {
             screen: size,
             // FIXME: Glutin doesn't have API for available size. Fallback to screen size
             screen_avail: size,
-            hidpi_factor: ScaleFactor::new(2.0),
+            hidpi_factor: TypedScale::new(2.0),
         }
     }
 }

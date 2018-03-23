@@ -7,10 +7,34 @@ use gl_glue;
 use glue::{self, SERVO};
 use jni::JNIEnv;
 use jni::objects::{GlobalRef, JClass, JObject, JValue, JString};
-use jni::sys::{jint, jboolean, jlong, jstring};
+use jni::sys::{jint, jboolean, jstring};
 use jni::JavaVM;
 use log::Level;
 use std::sync::Arc;
+
+#[derive(Debug)]
+pub enum ScrollState {
+    Start,
+    Move,
+    End,
+    Canceled,
+}
+
+pub struct HostCallbacks {
+    callbacks: GlobalRef,
+    jvm: JavaVM,
+}
+
+/// Generic result errors
+#[repr(C)]
+pub enum ServoResult {
+    Ok,
+    UnexpectedError,
+    WrongThread,
+    CantReadStr,
+    CantParseUrl,
+    NotImplemented,
+}
 
 #[no_mangle]
 #[allow(non_snake_case)]
@@ -33,8 +57,8 @@ pub fn Java_org_mozilla_geckoview_LibServo_init(
 
     android_logger::init_once(
         Filter::default().with_min_level(Level::Debug)
-                         .with_allowed_module_path("servobridge::glue")
-                         .with_allowed_module_path("servobridge::api"));
+        .with_allowed_module_path("servobridge::glue")
+        .with_allowed_module_path("servobridge::api"));
 
     debug!("api.rs::init");
 
@@ -54,27 +78,22 @@ pub fn Java_org_mozilla_geckoview_LibServo_init(
 #[no_mangle]
 #[allow(non_snake_case)]
 pub fn Java_org_mozilla_geckoview_LibServo_resize(
-    env: JNIEnv, _: JClass,
+    _env: JNIEnv, _: JClass,
     width: jint,
     height: jint) {
-
     debug!("api.rs::resize {}/{}", width, height);
-
-    let mut res = ServoResult::UnexpectedError;
     SERVO.with(|s| {
-        res = s.borrow_mut().as_mut().map(|ref mut s| {
+        s.borrow_mut().as_mut().map(|ref mut s| {
             s.resize(width as u32, height as u32)
-        }).unwrap_or(ServoResult::WrongThread)
+        });
     });
-    res; // FIXME
-
 }
 
 /// This is the Servo heartbeat. This needs to be called
 /// everytime wakeup is called.
 #[no_mangle]
 #[allow(non_snake_case)]
-pub fn Java_org_mozilla_geckoview_LibServo_performUpdates(env: JNIEnv, _class: JClass) {
+pub fn Java_org_mozilla_geckoview_LibServo_performUpdates(_env: JNIEnv, _class: JClass) {
     debug!("api.rs::performUpdates");
     SERVO.with(|s| {
         s.borrow_mut().as_mut().map(|ref mut s| {
@@ -90,61 +109,52 @@ pub fn Java_org_mozilla_geckoview_LibServo_performUpdates(env: JNIEnv, _class: J
 pub fn Java_org_mozilla_geckoview_LibServo_loadUri(env: JNIEnv, _class: JClass, url: JString) {
     debug!("api.rs::loadUri");
     let url = env.get_string(url).expect("Couldn't get java string").into();
-    let mut res = ServoResult::UnexpectedError;
     SERVO.with(|s| {
-        res = s.borrow_mut().as_mut().map(|ref mut s| {
+        s.borrow_mut().as_mut().map(|ref mut s| {
             s.load_uri(url)
-        }).unwrap_or(ServoResult::WrongThread)
+        });
     });
-    res; // FIXME
 }
 
 /// Reload page.
 #[no_mangle]
 #[allow(non_snake_case)]
-pub fn Java_org_mozilla_geckoview_LibServo_reload(env: JNIEnv, _class: JClass) {
+pub fn Java_org_mozilla_geckoview_LibServo_reload(_env: JNIEnv, _class: JClass) {
     debug!("api.rs::reload");
-    let mut res = ServoResult::UnexpectedError;
     SERVO.with(|s| {
-        res = s.borrow_mut().as_mut().map(|ref mut s| {
+        s.borrow_mut().as_mut().map(|ref mut s| {
             s.reload()
-        }).unwrap_or(ServoResult::WrongThread)
+        });
     });
-    res; // FIXME
 }
 
 #[no_mangle]
 #[allow(non_snake_case)]
-pub fn Java_org_mozilla_geckoview_LibServo_goBack(env: JNIEnv, _class: JClass) {
+pub fn Java_org_mozilla_geckoview_LibServo_goBack(_env: JNIEnv, _class: JClass) {
     debug!("api.rs::goBack");
-    let mut res = ServoResult::UnexpectedError;
     SERVO.with(|s| {
-        res = s.borrow_mut().as_mut().map(|ref mut s| {
+        s.borrow_mut().as_mut().map(|ref mut s| {
             s.go_back()
-        }).unwrap_or(ServoResult::WrongThread)
+        });
     });
-    res; // FIXME
 }
 
 #[no_mangle]
 #[allow(non_snake_case)]
-pub fn Java_org_mozilla_geckoview_LibServo_goForward(env: JNIEnv, _class: JClass) {
+pub fn Java_org_mozilla_geckoview_LibServo_goForward(_env: JNIEnv, _class: JClass) {
     debug!("api.rs::goForward");
-    let mut res = ServoResult::UnexpectedError;
     SERVO.with(|s| {
-        res = s.borrow_mut().as_mut().map(|ref mut s| {
+        s.borrow_mut().as_mut().map(|ref mut s| {
             s.go_forward()
-        }).unwrap_or(ServoResult::WrongThread)
+        });
     });
-    res; // FIXME
 }
 
 #[no_mangle]
 #[allow(non_snake_case)]
 pub fn Java_org_mozilla_geckoview_LibServo_scroll(
-    env: JNIEnv, _: JClass,
+    _env: JNIEnv, _: JClass,
     dx: jint, dy: jint, x: jint, y: jint, state: jint) {
-    let mut res = ServoResult::UnexpectedError;
     let state = match state {
         0 => ScrollState::Start,
         1 => ScrollState::Move,
@@ -152,58 +162,23 @@ pub fn Java_org_mozilla_geckoview_LibServo_scroll(
         _ => return,
     };
     SERVO.with(|s| {
-        res = s.borrow_mut().as_mut().map(|ref mut s| {
+        s.borrow_mut().as_mut().map(|ref mut s| {
             debug!("api.rs::scroll({},{},{},{},{:?}", dx as i32, dy as i32, x as u32, y as u32, state);
             s.scroll(dx as i32, dy as i32, x as u32, y as u32, state)
-        }).unwrap_or(ServoResult::WrongThread)
+        });
     });
-    res; // FIXME
 }
 
 
 #[no_mangle]
 #[allow(non_snake_case)]
-pub fn Java_org_mozilla_geckoview_LibServo_click(env: JNIEnv, _: JClass, x: jint, y: jint) {
+pub fn Java_org_mozilla_geckoview_LibServo_click(_env: JNIEnv, _: JClass, x: jint, y: jint) {
     SERVO.with(|s| {
         s.borrow_mut().as_mut().map(|ref mut s| {
             s.click(x as u32, y as u32);
         });
     });
 }
-
-/// Generic result errors
-#[repr(C)]
-pub enum ServoResult {
-    Ok,
-    UnexpectedError,
-    WrongThread,
-    CantReadStr,
-    CantParseUrl,    
-    NotImplemented,
-}
-
-/// Scroll state
-#[repr(C)]
-#[derive(Debug)]
-pub enum ScrollState {
-    Start,
-    Move,
-    End,
-    Canceled,
-}
-
-/// Touch state
-#[repr(C)]
-pub enum TouchState {
-    Down,
-    Up,
-}
-
-pub struct HostCallbacks {
-    callbacks: GlobalRef,
-    jvm: JavaVM,
-}
-
 pub struct WakeupCallback {
     callback: GlobalRef,
     jvm: Arc<JavaVM>,
@@ -284,33 +259,9 @@ impl HostCallbacks {
     /// Back/forward buttons need to be disabled/enabled.
     pub fn on_history_changed(&self, can_go_back: bool, can_go_forward: bool) {
         debug!("api.rs::on_history_changed");
-        // FIXME
-        // let can_go_back = JValue::Bool(can_go_back as jboolean);
-        // let can_go_forward = JValue::Bool(can_go_forward as jboolean);
-        // let env = self.jvm.get_env().unwrap();
-        // env.call_method(self.callbacks.as_obj(), "onHistoryChanged", "(Z;Z)V", &[can_go_back, can_go_forward]).unwrap();
+        let env = self.jvm.get_env().unwrap();
+        let can_go_back = JValue::Bool(can_go_back as jboolean);
+        let can_go_forward = JValue::Bool(can_go_forward as jboolean);
+        env.call_method(self.callbacks.as_obj(), "onHistoryChanged", "(ZZ)V", &[can_go_back, can_go_forward]).unwrap();
     }
-}
-
-#[repr(C)]
-#[derive(Debug)]
-pub struct Size {
-    pub width: u32,
-    pub height: u32,
-}
-
-#[repr(C)]
-#[derive(Debug)]
-pub struct Margins {
-    pub top: u32,
-    pub right: u32,
-    pub bottom: u32,
-    pub left: u32,
-}
-
-#[repr(C)]
-#[derive(Debug)]
-pub struct Position {
-    pub x: i32,
-    pub y: i32,
 }
