@@ -94,7 +94,6 @@ public class GeckoSession {
 
   public void onGLReady() {
     Log.w(LOGTAG, "Loading libservo");
-    System.loadLibrary("c++_shared");
     mServo = new LibServo();
     Log.w(LOGTAG, mServo.version());
     final WakeupCallback c1 = new WakeupCallback();
@@ -429,6 +428,16 @@ public class GeckoSession {
       public void run() {
         if (mServo != null)  {
           mServo.goForward();
+        }
+      }
+    });
+  }
+  public void click(final int x, final int y) {
+    Log.w(LOGTAG, "GeckoSession::click");
+    mView.queueEvent(new Runnable() {
+      public void run() {
+        if (mServo != null)  {
+          mServo.click(x, y);
         }
       }
     });

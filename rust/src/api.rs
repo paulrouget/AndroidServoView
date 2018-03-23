@@ -160,6 +160,17 @@ pub fn Java_org_mozilla_geckoview_LibServo_scroll(
     res; // FIXME
 }
 
+
+#[no_mangle]
+#[allow(non_snake_case)]
+pub fn Java_org_mozilla_geckoview_LibServo_click(env: JNIEnv, _: JClass, x: jint, y: jint) {
+    SERVO.with(|s| {
+        s.borrow_mut().as_mut().map(|ref mut s| {
+            s.click(x as u32, y as u32);
+        });
+    });
+}
+
 /// Generic result errors
 #[repr(C)]
 pub enum ServoResult {
@@ -303,14 +314,3 @@ pub struct Position {
     pub x: i32,
     pub y: i32,
 }
-
-// #[no_mangle]
-// pub extern "C" fn click(x: u32, y: u32) -> ServoResult {
-//     let mut res = ServoResult::UnexpectedError;
-//     SERVO.with(|s| {
-//         res = s.borrow_mut().as_mut().map(|ref mut s| {
-//             s.click(x, y)
-//         }).unwrap_or(ServoResult::WrongThread)
-//     });
-//     res
-// }

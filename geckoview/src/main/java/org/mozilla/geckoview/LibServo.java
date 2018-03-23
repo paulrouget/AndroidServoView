@@ -11,6 +11,7 @@ public class LibServo {
     public native void goForward();
     public native void loadUri(String uri);
     public native void scroll(int dx, int dy, int x, int y, int phase);
+    public native void click(int x, int y);
 
     public LibServo() {
         System.loadLibrary("c++_shared");

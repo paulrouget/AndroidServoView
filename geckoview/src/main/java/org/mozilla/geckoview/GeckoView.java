@@ -155,7 +155,7 @@ public class GeckoView extends FrameLayout implements GestureDetector.OnGestureL
   }
 
   public boolean onSingleTapUp(MotionEvent e) {
-    // mSession.click(e.getX(), e.getY());
+    mSession.click((int)e.getX(), (int)e.getY());
     return false;
   }
 
