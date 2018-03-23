@@ -8,7 +8,7 @@ cd $BASEDIR/..
 [ -z "$ANDROID_SDK" ] && echo "Need to set ANDROID_SDK" && exit 1;
 [ -z "$ANDROID_NDK" ] && echo "Need to set ANDROID_NDK" && exit 1;
 
-#### Feel free to change:
+#### Feel free to change the following:
 
 ## armv7
 ABI="armeabi-v7a"
@@ -65,10 +65,8 @@ export OPENSSL_STATIC="TRUE"
 
 cargo build --release --target $RUST_TARGET
 
-# HEADER_NAME="libservobridge.h"
 TARGET="./target/$RUST_TARGET/release/libservobridge.so"
 DEST="../geckoview/libs/$ABI"
 $NDK_BIN_PATH/$TOOLCHAIN_PATH-strip $TARGET
 cp $TARGET $DEST
 cp $ANDROID_NDK/sources/cxx-stl/llvm-libc++/libs/$ABI/libc++_shared.so $DEST
-# cp ./target/$HEADER_NAME $DEST

@@ -1,24 +1,21 @@
 [package]
 name = "servobridge"
-version = "0.1.0"
-authors = ["Paul Rouget <me@paulrouget.com>"]
+version = "0.0.1"
 build = "build.rs"
+authors = ["The Servo Project Developers"]
+license = "MPL-2.0"
+publish = false
 
 [lib]
 name = "servobridge"
 crate-type = ["cdylib"]
 
 [dependencies]
-# libservo = { git = "https://github.com/servo/servo", rev = "c9f60c5a67" }
-libservo = { path = "/Users/paul/git/servo/components/servo/" }
+libservo = { git = "https://github.com/servo/servo/" , rev = "91398cf"}
 libc = "0.2"
 log = "0.4"
 jni = "0.9"
-android_logger = "0.4"
+android_logger = "0.5"
 
 [build-dependencies]
 gl_generator = "0.6"
-
-[patch.crates-io]
-android_logger = { path = "../../android_logger-rs/" }
-

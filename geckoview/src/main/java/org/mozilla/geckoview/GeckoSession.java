@@ -107,8 +107,13 @@ public class GeckoSession {
     });
   }
 
-  public void onViewResized(int width, int height) {
-    mServo.resize(width, height);
+  public void onViewResized(final int width, final int height) {
+    Log.w(LOGTAG, "onViewResized");
+    mView.queueEvent(new Runnable() {
+      public void run() {
+        mServo.resize(width, height);
+      }
+    });
   }
 
   /**

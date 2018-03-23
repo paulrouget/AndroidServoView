@@ -5,7 +5,6 @@
 #[cfg(target_os = "windows")]
 extern crate winapi;
 
-
 #[cfg(not(target_os = "macos"))]
 #[allow(non_camel_case_types)]
 pub mod egl {
@@ -17,7 +16,6 @@ pub mod egl {
     use std::ffi::CString;
     use std::os::raw::c_void;
     use std::rc::Rc;
-
 
     #[cfg(target_os = "windows")]
     pub type EGLNativeWindowType = winapi::HWND;
@@ -33,7 +31,7 @@ pub mod egl {
     pub type khronos_ssize_t = libc::c_long;
     pub type EGLint = libc::int32_t;
     pub type EGLNativeDisplayType = *const libc::c_void;
-    pub type EGLNativePixmapType = *const libc::c_void;     // FIXME: egl_native_pixmap_t instead
+    pub type EGLNativePixmapType = *const libc::c_void;
     pub type NativeDisplayType = EGLNativeDisplayType;
     pub type NativePixmapType = EGLNativePixmapType;
     pub type NativeWindowType = EGLNativeWindowType;

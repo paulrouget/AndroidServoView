@@ -4,102 +4,107 @@
 
 use android_logger::{self, Filter};
 use gl_glue;
-use glue::{self, SERVO};
-use jni::JNIEnv;
-use jni::objects::{GlobalRef, JClass, JObject, JValue, JString};
-use jni::sys::{jint, jboolean, jstring};
-use jni::JavaVM;
+use glue::{self, ServoGlue, SERVO};
+use jni::{JNIEnv, JavaVM};
+use jni::objects::{GlobalRef, JClass, JObject, JString, JValue};
+use jni::sys::{jboolean, jint, jstring};
 use log::Level;
 use std::sync::Arc;
-
-#[derive(Debug)]
-pub enum ScrollState {
-    Start,
-    Move,
-    End,
-    Canceled,
-}
 
 pub struct HostCallbacks {
     callbacks: GlobalRef,
     jvm: JavaVM,
 }
 
-/// Generic result errors
-#[repr(C)]
-pub enum ServoResult {
-    Ok,
-    UnexpectedError,
-    WrongThread,
-    CantReadStr,
-    CantParseUrl,
-    NotImplemented,
+fn call<F>(env: JNIEnv, f: F)
+where
+    F: Fn(&mut ServoGlue) -> Result<(), &'static str>,
+{
+    SERVO.with(|s| {
+        if let Err(error) = match s.borrow_mut().as_mut() {
+            Some(ref mut s) => (f)(s),
+            None => Err("Servo not available in this thread"),
+        } {
+            env.throw(("java/lang/Exception", error))
+                .expect("Error while throwing");
+        }
+    });
 }
 
 #[no_mangle]
 #[allow(non_snake_case)]
 pub fn Java_org_mozilla_geckoview_LibServo_version(env: JNIEnv, _class: JClass) -> jstring {
     let v = glue::servo_version();
-    let output = env.new_string(format!("Servo Version: {}", v)).expect("Couldn't create java string");
+    let output = env.new_string(format!("Servo Version: {}", v))
+        .expect("Couldn't create java string");
     output.into_inner()
 }
 
-/// Needs to be called from the EGL thread
 #[no_mangle]
 #[allow(non_snake_case)]
 pub fn Java_org_mozilla_geckoview_LibServo_init(
-    env: JNIEnv, _: JClass,
+    env: JNIEnv,
+    _: JClass,
     url: JString,
     resources_path: JString,
     wakeup_obj: JObject,
     callbacks_obj: JObject,
-    width: jint, height: jint) {
-
+    width: jint,
+    height: jint,
+) {
     android_logger::init_once(
-        Filter::default().with_min_level(Level::Debug)
-        .with_allowed_module_path("servobridge::glue")
-        .with_allowed_module_path("servobridge::api"));
+        Filter::default()
+            .with_min_level(Level::Debug)
+            .with_allowed_module_path("servobridge::glue")
+            .with_allowed_module_path("servobridge::api"),
+    );
 
-    debug!("api.rs::init");
+    debug!("init");
 
-    let url = env.get_string(url).expect("Couldn't get java string").into();
-    let resources_path = env.get_string(resources_path).expect("Couldn't get java string").into();
+    let url = env.get_string(url)
+        .expect("Couldn't get java string")
+        .into();
+    let resources_path = env.get_string(resources_path)
+        .expect("Couldn't get java string")
+        .into();
 
     let wakeup = WakeupCallback::new(wakeup_obj, &env);
     let callbacks = HostCallbacks::new(callbacks_obj, &env);
 
     let gl = gl_glue::egl::init();
-    glue::init(gl, url, resources_path, wakeup, callbacks, width as u32, height as u32);
-    // FIXME: send ServoResult, or throw maybe?
+    glue::init(
+        gl,
+        url,
+        resources_path,
+        wakeup,
+        callbacks,
+        width as u32,
+        height as u32,
+    ).or_else(|err| env.throw(("java/lang/Exception", err)))
+        .expect("Error while throwing");
 }
-
 
 /// Needs to be called from the EGL thread
 #[no_mangle]
 #[allow(non_snake_case)]
 pub fn Java_org_mozilla_geckoview_LibServo_resize(
-    _env: JNIEnv, _: JClass,
+    env: JNIEnv,
+    _: JClass,
     width: jint,
-    height: jint) {
-    debug!("api.rs::resize {}/{}", width, height);
-    SERVO.with(|s| {
-        s.borrow_mut().as_mut().map(|ref mut s| {
-            s.resize(width as u32, height as u32)
-        });
-    });
+    height: jint,
+) {
+    debug!("resize {}/{}", width, height);
+    call(env, |s| s.resize(width as u32, height as u32));
 }
 
 /// This is the Servo heartbeat. This needs to be called
 /// everytime wakeup is called.
 #[no_mangle]
 #[allow(non_snake_case)]
-pub fn Java_org_mozilla_geckoview_LibServo_performUpdates(_env: JNIEnv, _class: JClass) {
-    debug!("api.rs::performUpdates");
-    SERVO.with(|s| {
-        s.borrow_mut().as_mut().map(|ref mut s| {
-            s.perform_updates();
-            s.handle_servo_events();
-        });
+pub fn Java_org_mozilla_geckoview_LibServo_performUpdates(env: JNIEnv, _class: JClass) {
+    debug!("performUpdates");
+    call(env, |s| {
+        s.perform_updates().and_then(|_| s.handle_servo_events())
     });
 }
 
@@ -107,78 +112,57 @@ pub fn Java_org_mozilla_geckoview_LibServo_performUpdates(_env: JNIEnv, _class: 
 #[no_mangle]
 #[allow(non_snake_case)]
 pub fn Java_org_mozilla_geckoview_LibServo_loadUri(env: JNIEnv, _class: JClass, url: JString) {
-    debug!("api.rs::loadUri");
-    let url = env.get_string(url).expect("Couldn't get java string").into();
-    SERVO.with(|s| {
-        s.borrow_mut().as_mut().map(|ref mut s| {
-            s.load_uri(url)
-        });
-    });
+    debug!("loadUri");
+    let url: String = env.get_string(url).unwrap().into();
+    call(env, |s| s.load_uri(&url));
 }
 
 /// Reload page.
 #[no_mangle]
 #[allow(non_snake_case)]
-pub fn Java_org_mozilla_geckoview_LibServo_reload(_env: JNIEnv, _class: JClass) {
-    debug!("api.rs::reload");
-    SERVO.with(|s| {
-        s.borrow_mut().as_mut().map(|ref mut s| {
-            s.reload()
-        });
-    });
+pub fn Java_org_mozilla_geckoview_LibServo_reload(env: JNIEnv, _class: JClass) {
+    debug!("reload");
+    call(env, |s| s.reload());
 }
 
 #[no_mangle]
 #[allow(non_snake_case)]
-pub fn Java_org_mozilla_geckoview_LibServo_goBack(_env: JNIEnv, _class: JClass) {
-    debug!("api.rs::goBack");
-    SERVO.with(|s| {
-        s.borrow_mut().as_mut().map(|ref mut s| {
-            s.go_back()
-        });
-    });
+pub fn Java_org_mozilla_geckoview_LibServo_goBack(env: JNIEnv, _class: JClass) {
+    debug!("goBack");
+    call(env, |s| s.go_back());
 }
 
 #[no_mangle]
 #[allow(non_snake_case)]
-pub fn Java_org_mozilla_geckoview_LibServo_goForward(_env: JNIEnv, _class: JClass) {
-    debug!("api.rs::goForward");
-    SERVO.with(|s| {
-        s.borrow_mut().as_mut().map(|ref mut s| {
-            s.go_forward()
-        });
-    });
+pub fn Java_org_mozilla_geckoview_LibServo_goForward(env: JNIEnv, _class: JClass) {
+    debug!("goForward");
+    call(env, |s| s.go_forward());
 }
 
 #[no_mangle]
 #[allow(non_snake_case)]
 pub fn Java_org_mozilla_geckoview_LibServo_scroll(
-    _env: JNIEnv, _: JClass,
-    dx: jint, dy: jint, x: jint, y: jint, state: jint) {
-    let state = match state {
-        0 => ScrollState::Start,
-        1 => ScrollState::Move,
-        2 => ScrollState::End,
-        _ => return,
-    };
-    SERVO.with(|s| {
-        s.borrow_mut().as_mut().map(|ref mut s| {
-            debug!("api.rs::scroll({},{},{},{},{:?}", dx as i32, dy as i32, x as u32, y as u32, state);
-            s.scroll(dx as i32, dy as i32, x as u32, y as u32, state)
-        });
+    env: JNIEnv,
+    _: JClass,
+    dx: jint,
+    dy: jint,
+    x: jint,
+    y: jint,
+    state: jint,
+) {
+    debug!("scroll");
+    call(env, |s| {
+        s.scroll(dx as i32, dy as i32, x as u32, y as u32, state as u32)
     });
 }
-
 
 #[no_mangle]
 #[allow(non_snake_case)]
-pub fn Java_org_mozilla_geckoview_LibServo_click(_env: JNIEnv, _: JClass, x: jint, y: jint) {
-    SERVO.with(|s| {
-        s.borrow_mut().as_mut().map(|ref mut s| {
-            s.click(x as u32, y as u32);
-        });
-    });
+pub fn Java_org_mozilla_geckoview_LibServo_click(env: JNIEnv, _: JClass, x: jint, y: jint) {
+    debug!("click");
+    call(env, |s| s.click(x as u32, y as u32));
 }
+
 pub struct WakeupCallback {
     callback: GlobalRef,
     jvm: Arc<JavaVM>,
@@ -193,75 +177,103 @@ impl WakeupCallback {
     }
     pub fn new(jobject: JObject, env: &JNIEnv) -> WakeupCallback {
         let jvm = Arc::new(env.get_java_vm().unwrap());
-        WakeupCallback { callback: env.new_global_ref(jobject).unwrap(), jvm }
+        WakeupCallback {
+            callback: env.new_global_ref(jobject).unwrap(),
+            jvm,
+        }
     }
     /// Will be called from any thread.
     /// Will be called to notify embedder that some events
     /// are available, and that perform_updates need to be called
     pub fn wakeup(&self) {
-        debug!("api.rs::wakeup");
+        debug!("wakeup");
         let env = self.jvm.attach_current_thread().unwrap();
-        env.call_method(self.callback.as_obj(), "wakeup", "()V", &[]).unwrap();
+        env.call_method(self.callback.as_obj(), "wakeup", "()V", &[])
+            .unwrap();
     }
 }
 
 impl HostCallbacks {
-
     pub fn new(jobject: JObject, env: &JNIEnv) -> HostCallbacks {
         let jvm = env.get_java_vm().unwrap();
-        HostCallbacks { callbacks: env.new_global_ref(jobject).unwrap(), jvm }
+        HostCallbacks {
+            callbacks: env.new_global_ref(jobject).unwrap(),
+            jvm,
+        }
     }
 
     /// Will be called from the thread used for the init call
     /// Will be called when the GL buffer has been updated.
     pub fn flush(&self) {
-        debug!("api.rs::flush");
+        debug!("flush");
         let env = self.jvm.get_env().unwrap();
-        env.call_method(self.callbacks.as_obj(), "flush", "()V", &[]).unwrap();
+        env.call_method(self.callbacks.as_obj(), "flush", "()V", &[])
+            .unwrap();
     }
 
     /// Page starts loading.
     /// "Reload button" becomes "Stop button".
     /// Throbber starts spinning.
     pub fn on_load_started(&self) {
-        debug!("api.rs::on_load_started");
+        debug!("on_load_started");
         let env = self.jvm.get_env().unwrap();
-        env.call_method(self.callbacks.as_obj(), "onLoadStarted", "()V", &[]).unwrap();
+        env.call_method(self.callbacks.as_obj(), "onLoadStarted", "()V", &[])
+            .unwrap();
     }
 
     /// Page has loaded.
     /// "Stop button" becomes "Reload button".
     /// Throbber stops spinning.
     pub fn on_load_ended(&self) {
-        debug!("api.rs::on_load_ended");
+        debug!("on_load_ended");
         let env = self.jvm.get_env().unwrap();
-        env.call_method(self.callbacks.as_obj(), "onLoadEnded", "()V", &[]).unwrap();
+        env.call_method(self.callbacks.as_obj(), "onLoadEnded", "()V", &[])
+            .unwrap();
     }
 
     /// Title changed.
     pub fn on_title_changed(&self, title: String) {
-        debug!("api.rs::on_title_changed");
+        debug!("on_title_changed");
         let env = self.jvm.get_env().unwrap();
-        let s = env.new_string(&title).expect("Couldn't create java string").into_inner();
+        let s = env.new_string(&title)
+            .expect("Couldn't create java string")
+            .into_inner();
         let s = JValue::from(JObject::from(s));
-        env.call_method(self.callbacks.as_obj(), "onTitleChanged", "(Ljava/lang/String;)V", &[s]).unwrap();
+        env.call_method(
+            self.callbacks.as_obj(),
+            "onTitleChanged",
+            "(Ljava/lang/String;)V",
+            &[s],
+        ).unwrap();
     }
 
     pub fn on_url_changed(&self, url: String) {
-        debug!("api.rs::on_url_changed");
+        debug!("on_url_changed");
         let env = self.jvm.get_env().unwrap();
-        let s = env.new_string(&url).expect("Couldn't create java string").into_inner();
+        let s = env.new_string(&url)
+            .expect("Couldn't create java string")
+            .into_inner();
         let s = JValue::Object(JObject::from(s));
-        env.call_method(self.callbacks.as_obj(), "onUrlChanged", "(Ljava/lang/String;)V", &[s]).unwrap();
+        env.call_method(
+            self.callbacks.as_obj(),
+            "onUrlChanged",
+            "(Ljava/lang/String;)V",
+            &[s],
+        ).unwrap();
     }
 
     /// Back/forward state changed.
     /// Back/forward buttons need to be disabled/enabled.
     pub fn on_history_changed(&self, can_go_back: bool, can_go_forward: bool) {
-        debug!("api.rs::on_history_changed");
+        debug!("on_history_changed");
         let env = self.jvm.get_env().unwrap();
         let can_go_back = JValue::Bool(can_go_back as jboolean);
         let can_go_forward = JValue::Bool(can_go_forward as jboolean);
-        env.call_method(self.callbacks.as_obj(), "onHistoryChanged", "(ZZ)V", &[can_go_back, can_go_forward]).unwrap();
+        env.call_method(
+            self.callbacks.as_obj(),
+            "onHistoryChanged",
+            "(ZZ)V",
+            &[can_go_back, can_go_forward],
+        ).unwrap();
     }
 }

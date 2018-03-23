@@ -9,28 +9,25 @@ use std::path::Path;
 use std::process;
 use std::process::{Command, Stdio};
 
-use gl_generator::{Registry, Api, Profile, Fallbacks, StaticStructGenerator};
+use gl_generator::{Api, Fallbacks, Profile, Registry, StaticStructGenerator};
 use std::fs::File;
-
 
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=src/api.rs");
 
     // Get the NDK path from NDK_HOME env.
-    let ndk_path = env::var("ANDROID_NDK").ok().expect("Please set the ANDROID_NDK environment variable");
+    let ndk_path = env::var("ANDROID_NDK")
+        .ok()
+        .expect("Please set the ANDROID_NDK environment variable");
     let ndk_path = Path::new(&ndk_path);
-
-    // Build up the path to the NDK compilers
-    // Options for host are:  "linux-x86_64" "linux-x86" "darwin-x86_64" "darwin-x86"
-    // per: https://android.googlesource.com/platform/ndk/+/ics-mr0/docs/STANDALONE-TOOLCHAIN.html
 
     let host = env::var("HOST").unwrap();
     let google_host = match host.as_ref() {
         "i686-unknown-linux-gnu" => "linux-x86",
         "x86_64-apple-darwin" => "darwin-x86_64",
         "x86_64-unknown-linux-gnu" => "linux-x86_64",
-        _ => panic!("Unknown support android cross-compile host: {}", host)
+        _ => panic!("Unknown support android cross-compile host: {}", host),
     };
 
     let target = env::var("TARGET").unwrap();
@@ -58,24 +55,42 @@ fn main() {
         target
     };
 
-    let toolchain_path = ndk_path.join("toolchains").join(format!("{}-4.9", toolchain)).join("prebuilt").
-        join(google_host);
+    let toolchain_path = ndk_path
+        .join("toolchains")
+        .join(format!("{}-4.9", toolchain))
+        .join("prebuilt")
+        .join(google_host);
     println!("toolchain path is: {}", toolchain_path.to_str().unwrap());
 
-
     // Get the output directory.
-    let out_dir = env::var("OUT_DIR").ok().expect("Cargo should have set the OUT_DIR environment variable");
+    let out_dir = env::var("OUT_DIR")
+        .ok()
+        .expect("Cargo should have set the OUT_DIR environment variable");
     let directory = Path::new(&out_dir);
 
     // compiling android_native_app_glue.c
-    if Command::new(toolchain_path.join("bin").join(format!("{}-gcc", toolchain)))
-        .arg(ndk_path.join("sources").join("android").join("native_app_glue").join("android_native_app_glue.c"))
+    if Command::new(
+        toolchain_path
+            .join("bin")
+            .join(format!("{}-gcc", toolchain)),
+    ).arg(
+        ndk_path
+            .join("sources")
+            .join("android")
+            .join("native_app_glue")
+            .join("android_native_app_glue.c"),
+    )
         .arg("-c")
-        .arg("-o").arg(directory.join("android_native_app_glue.o"))
-        .arg("--sysroot").arg(ndk_path.join("platforms").join(platform).join(arch))
+        .arg("-o")
+        .arg(directory.join("android_native_app_glue.o"))
+        .arg("--sysroot")
+        .arg(ndk_path.join("platforms").join(platform).join(arch))
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())
-        .status().unwrap().code().unwrap() != 0
+        .status()
+        .unwrap()
+        .code()
+        .unwrap() != 0
     {
         println!("Error while executing gcc");
         process::exit(1)
@@ -88,7 +103,10 @@ fn main() {
         .arg(directory.join("android_native_app_glue.o"))
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())
-        .status().unwrap().code().unwrap() != 0
+        .status()
+        .unwrap()
+        .code()
+        .unwrap() != 0
     {
         println!("Error while executing ar");
         process::exit(1)
@@ -101,10 +119,8 @@ fn main() {
 
     // Generate GL bindings
     let dest = env::var("OUT_DIR").unwrap();
-    let mut file = File::create(&Path::new(&dest).join("gl_bindings.rs")).unwrap();
-    Registry::new(Api::Gl, (3, 2), Profile::Core, Fallbacks::All, ["GL_EXT_framebuffer_object"])
-        .write_bindings(gl_generator::GlobalGenerator, &mut file).unwrap();
     let mut file = File::create(&Path::new(&dest).join("egl_bindings.rs")).unwrap();
     Registry::new(Api::Egl, (1, 5), Profile::Core, Fallbacks::All, [])
-        .write_bindings(StaticStructGenerator, &mut file).unwrap();
+        .write_bindings(StaticStructGenerator, &mut file)
+        .unwrap();
 }
