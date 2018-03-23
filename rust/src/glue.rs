@@ -5,8 +5,8 @@
 use api::*;
 use servo::BrowserId;
 use servo::Servo;
-use servo::compositing::compositor_thread::EventLoopWaker;
-use servo::compositing::windowing::{MouseWindowEvent, WindowEvent, WindowMethods};
+use servo::compositing::compositor_thread::{EmbedderMsg, EventLoopWaker};
+use servo::compositing::windowing::{EmbedderCoordinates, AnimationState, MouseWindowEvent, WindowEvent, WindowMethods};
 use servo::euclid::{Length, Point2D, ScaleFactor, Size2D, TypedPoint2D, TypedRect, TypedSize2D, TypedVector2D};
 use servo::gl;
 use servo::ipc_channel::ipc;
@@ -35,6 +35,7 @@ pub struct ServoGlue {
     callbacks: Rc<ServoCallbacks>,
     browser_id: BrowserId,
     events: Vec<WindowEvent>,
+    current_url: Option<ServoUrl>,
 }
 
 pub fn servo_version() -> String {
@@ -72,7 +73,7 @@ pub fn init(
 
     let url = ServoUrl::parse(&url).unwrap();
     let (sender, receiver) = ipc::channel().unwrap();
-    servo.handle_events(vec![WindowEvent::NewBrowser(url, sender)]);
+    servo.handle_events(vec![WindowEvent::NewBrowser(url.clone(), sender)]);
     let browser_id = receiver.recv().unwrap();
     servo.handle_events(vec![WindowEvent::SelectBrowser(browser_id)]);
 
@@ -82,6 +83,7 @@ pub fn init(
             callbacks,
             browser_id,
             events: vec![],
+            current_url: Some(url),
         });
     });
 
@@ -156,6 +158,62 @@ impl ServoGlue {
         self.servo.handle_events(vec![event]);
         ServoResult::Ok
     }
+
+    pub fn handle_servo_events(&mut self) {
+        for event in self.servo.get_events() {
+            match event {
+                EmbedderMsg::Status(_browser_id, status) => {
+                },
+                EmbedderMsg::ChangePageTitle(_browser_id, title) => {
+                    let fallback_title: String = if let Some(ref current_url) = self.current_url {
+                        current_url.to_string()
+                    } else {
+                        String::from("Untitled")
+                    };
+                    let title = match title {
+                        Some(ref title) if title.len() > 0 => &**title,
+                        _ => &fallback_title,
+                    };
+                    let title = format!("{} - Servo", title);
+                    self.callbacks.host_callbacks.on_title_changed(title);
+                }
+                EmbedderMsg::MoveTo(_browser_id, point) => { }
+                EmbedderMsg::ResizeTo(_browser_id, size) => { }
+                EmbedderMsg::AllowNavigation(_browser_id, _url, response_chan) => {
+                    if let Err(e) = response_chan.send(true) {
+                        warn!("Failed to send allow_navigation() response: {}", e);
+                    };
+                }
+                EmbedderMsg::KeyEvent(browser_id, ch, key, state, modified) => {
+                }
+                EmbedderMsg::SetCursor(cursor) => {
+                }
+                EmbedderMsg::NewFavicon(_browser_id, url) => {
+                }
+                EmbedderMsg::HeadParsed(_browser_id, ) => {
+                }
+                EmbedderMsg::HistoryChanged(_browser_id, entries, current) => {
+                    let can_go_back = current > 0;
+                    let can_go_forward = current < entries.len() - 1;
+                    self.callbacks.host_callbacks.on_history_changed(can_go_back, can_go_forward);
+                    self.callbacks.host_callbacks.on_url_changed(entries[current].url.clone().to_string());
+                    self.current_url = Some(entries[current].url.clone());
+                }
+                EmbedderMsg::SetFullscreenState(_browser_id, state) => {
+                }
+                EmbedderMsg::LoadStart(_browser_id) => {
+                    self.callbacks.host_callbacks.on_load_started();
+                }
+                EmbedderMsg::LoadComplete(_browser_id) => {
+                    self.callbacks.host_callbacks.on_load_ended();
+                }
+                EmbedderMsg::Shutdown => {
+                },
+                EmbedderMsg::Panic(_browser_id, _reason, _backtrace) => {
+                }
+            }
+        }
+    }
 }
 
 
@@ -204,72 +262,20 @@ impl WindowMethods for ServoCallbacks {
         self.gl.clone()
     }
 
-    fn hidpi_factor(&self) -> ScaleFactor<f32, DeviceIndependentPixel, DevicePixel> {
-        info!("WindowMethods::hidpi_factor");
-        // FIXME
-        ScaleFactor::new(2.0)
+    fn set_animation_state(&self, _state: AnimationState) {
+        // FIXME: use Choreographer
     }
 
-    fn framebuffer_size(&self) -> TypedSize2D<u32, DevicePixel> {
-        info!("WindowMethods::framebuffer_size");
-        TypedSize2D::new(self.width.get(), self.height.get())
+    fn get_coordinates(&self) -> EmbedderCoordinates {
+        let size = TypedSize2D::new(self.width.get(), self.height.get());
+        EmbedderCoordinates {
+            viewport: webrender_api::DeviceUintRect::new(TypedPoint2D::zero(), size),
+            framebuffer: size,
+            window: (size, TypedPoint2D::new(0,0)),
+            screen: size,
+            // FIXME: Glutin doesn't have API for available size. Fallback to screen size
+            screen_avail: size,
+            hidpi_factor: ScaleFactor::new(2.0),
+        }
     }
-
-    fn window_rect(&self) -> TypedRect<u32, DevicePixel> {
-        info!("WindowMethods::window_rect");
-        TypedRect::new(TypedPoint2D::new(0, 0), self.framebuffer_size())
-    }
-
-    fn client_window(&self, _id: BrowserId) -> (TypedSize2D<u32, DevicePixel>, TypedPoint2D<i32, DevicePixel>) {
-        info!("WindowMethods::client_window");
-        (self.framebuffer_size(), TypedPoint2D::new(0, 0))
-    }
-
-    fn load_start(&self, _id: BrowserId) {
-        info!("WindowMethods::load_start");
-        self.host_callbacks.on_load_started();
-    }
-
-    fn load_end(&self, _id: BrowserId) {
-        info!("WindowMethods::load_end");
-        self.host_callbacks.on_load_ended();
-    }
-
-    fn history_changed(&self, _id: BrowserId, entries: Vec<LoadData>, current: usize) {
-        info!("WindowMethods::history_changed");
-        let can_go_back = current > 0;
-        let can_go_forward = current < entries.len() - 1;
-        self.host_callbacks.on_history_changed(can_go_back, can_go_forward);
-        let url = entries[current].url.to_string();
-        self.host_callbacks.on_url_changed(url);
-    }
-
-    fn screen_size(&self, id: BrowserId) -> TypedSize2D<u32, DevicePixel> {
-        info!("WindowMethods::screen_size");
-        self.client_window(id).0
-    }
-
-    fn screen_avail_size(&self, id: BrowserId) -> TypedSize2D<u32, DevicePixel> {
-        info!("WindowMethods::screen_avail_size");
-        self.screen_size(id)
-    }
-
-    fn set_page_title(&self, _id: BrowserId, title: Option<String>) {
-        self.host_callbacks.on_title_changed(title.unwrap_or("No Title".to_string()));
-    }
-
-    fn handle_panic(&self, _: BrowserId, reason: String, _backtrace: Option<String>) {
-        debug!("PANIC!!! {}", reason);
-    }
-
-    fn allow_navigation(&self, _id: BrowserId, _url: ServoUrl, chan: ipc::IpcSender<bool>) { chan.send(true).ok(); }
-    fn set_inner_size(&self, _id: BrowserId, _size: TypedSize2D<u32, DevicePixel>) {}
-    fn set_position(&self, _id: BrowserId, _point: TypedPoint2D<i32, DevicePixel>) {}
-    fn set_fullscreen_state(&self, _id: BrowserId, _state: bool) {}
-    fn status(&self, _id: BrowserId, _status: Option<String>) {}
-    fn load_error(&self, _id: BrowserId, _: NetError, _url: String) {}
-    fn head_parsed(&self, _id: BrowserId) {}
-    fn set_cursor(&self, _cursor: CursorKind) { }
-    fn set_favicon(&self, _id: BrowserId, _url: ServoUrl) {}
-    fn handle_key(&self, _id: Option<BrowserId>, _ch: Option<char>, _key: Key, _mods: KeyModifiers) { }
 }

@@ -76,13 +76,12 @@ pub fn Java_org_mozilla_geckoview_LibServo_resize(
 #[allow(non_snake_case)]
 pub fn Java_org_mozilla_geckoview_LibServo_performUpdates(env: JNIEnv, _class: JClass) {
     debug!("api.rs::performUpdates");
-    let mut res = ServoResult::UnexpectedError;
     SERVO.with(|s| {
-        res = s.borrow_mut().as_mut().map(|ref mut s| {
-            s.perform_updates()
-        }).unwrap_or(ServoResult::WrongThread)
+        s.borrow_mut().as_mut().map(|ref mut s| {
+            s.perform_updates();
+            s.handle_servo_events();
+        });
     });
-    res; // FIXME
 }
 
 /// Load an URL. This needs to be a valid url.
