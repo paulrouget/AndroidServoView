@@ -1,6 +1,7 @@
 package org.mozilla.geckoview;
 
 import android.net.Uri;
+import android.support.annotation.IntDef;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.content.Context;
@@ -87,6 +88,9 @@ public class GeckoSession {
   public static void preload(final @NonNull Context context, final @Nullable String[] geckoArgs, final @Nullable Bundle extras, final boolean multiprocess) {
   }
 
+  public void close() {
+  }
+
   private static GeckoView mView;
   public void setView(GeckoView view) {
     mView = view;
@@ -132,11 +136,19 @@ public class GeckoSession {
     return mContentDelegate;
   }
   public interface ContentDelegate {
+    @IntDef({ELEMENT_TYPE_NONE, ELEMENT_TYPE_IMAGE, ELEMENT_TYPE_VIDEO,
+             ELEMENT_TYPE_AUDIO})
+    public @interface ElementType {}
+    static final int ELEMENT_TYPE_NONE = 0;
+    static final int ELEMENT_TYPE_IMAGE = 1;
+    static final int ELEMENT_TYPE_VIDEO = 2;
+    static final int ELEMENT_TYPE_AUDIO = 3;
+
     void onTitleChange(GeckoSession session, String title);
     void onFocusRequest(GeckoSession session);
     void onCloseRequest(GeckoSession session);
     void onFullScreen(GeckoSession session, boolean fullScreen);
-    void onContextMenu(GeckoSession session, int screenX, int screenY, String uri, String elementSrc);
+    void onContextMenu(GeckoSession session, int screenX, int screenY, String uri, @ElementType int elementType, String elementSrc);
   }
 
   /* ProgressDelegate */
@@ -201,38 +213,16 @@ public class GeckoSession {
     return mNavigationDelegate;
   }
   public interface NavigationDelegate {
-    enum TargetWindow {
-      DEFAULT(0),
-      CURRENT(1),
-      NEW(2);
-      private static final TargetWindow[] sValues = TargetWindow.values();
-      private int mValue;
-      private TargetWindow(int value) {
-        mValue = value;
-      }
-      public static TargetWindow forValue(int value) {
-        return sValues[value];
-      }
-      public static TargetWindow forGeckoValue(int value) {
-        // DEFAULT(0),
-        // CURRENT(1),
-        // NEW(2),
-        // NEWTAB(3),
-        // SWITCHTAB(4);
-        final TargetWindow[] sMap = {
-          DEFAULT,
-          CURRENT,
-          NEW,
-          NEW,
-          NEW
-        };
-        return sMap[value];
-      }
-    }
+    @IntDef({TARGET_WINDOW_NONE, TARGET_WINDOW_CURRENT, TARGET_WINDOW_NEW})
+    public @interface TargetWindow {}
+    public static final int TARGET_WINDOW_NONE = 0;
+    public static final int TARGET_WINDOW_CURRENT = 1;
+    public static final int TARGET_WINDOW_NEW = 2;
+
     void onLocationChange(GeckoSession session, String url);
     void onCanGoBack(GeckoSession session, boolean canGoBack);
     void onCanGoForward(GeckoSession session, boolean canGoForward);
-    boolean onLoadUri(GeckoSession session, String uri, TargetWindow where);
+    boolean onLoadRequest(GeckoSession session, String uri, @TargetWindow int target);
     void onNewSession(GeckoSession session, String uri, Response<GeckoSession> response);
   }
 
