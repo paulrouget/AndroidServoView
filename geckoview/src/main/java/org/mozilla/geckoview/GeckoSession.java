@@ -1,5 +1,8 @@
 package org.mozilla.geckoview;
 
+import org.mozilla.gecko.gfx.GeckoDisplay;
+import org.mozilla.gecko.gfx.PanZoomController;
+
 import android.net.Uri;
 import android.support.annotation.IntDef;
 import android.support.annotation.NonNull;
@@ -76,7 +79,12 @@ public class GeckoSession {
     };
   }
 
+  public GeckoSession() {
+  }
+
+  private GeckoSessionSettings mSettings;
   public GeckoSession(GeckoSessionSettings settings) {
+    mSettings = settings;
   }
 
   public static void preload(final @NonNull Context context) {
@@ -120,11 +128,41 @@ public class GeckoSession {
     });
   }
 
+  private SessionTextInput mTextInput = new SessionTextInput();
+  public @NonNull SessionTextInput getTextInput() {
+    return mTextInput;
+  }
+
+  public GeckoSessionSettings getSettings() {
+    return mSettings;
+  }
+
+  private GeckoDisplay mDisplay;
+  public @NonNull GeckoDisplay acquireDisplay() {
+    return mDisplay;
+  }
+  public void releaseDisplay(GeckoDisplay display) {
+  }
+
+  private PanZoomController mPanZoomController;
+  public PanZoomController getPanZoomController() {
+    return mPanZoomController;
+  }
+
+
   /**
    *
    * DELEGATES
    *
    */
+
+  /* WebResponseInfo */
+  public class WebResponseInfo {
+    public final String uri = "";
+    public final String contentType = "";
+    public final long contentLength = 0;
+    public final String filename = "";
+  }
 
   /* ContentDelegate */
 
@@ -149,6 +187,7 @@ public class GeckoSession {
     void onCloseRequest(GeckoSession session);
     void onFullScreen(GeckoSession session, boolean fullScreen);
     void onContextMenu(GeckoSession session, int screenX, int screenY, String uri, @ElementType int elementType, String elementSrc);
+    void onExternalResponse(GeckoSession session, WebResponseInfo response);
   }
 
   /* ProgressDelegate */
@@ -222,7 +261,9 @@ public class GeckoSession {
     void onLocationChange(GeckoSession session, String url);
     void onCanGoBack(GeckoSession session, boolean canGoBack);
     void onCanGoForward(GeckoSession session, boolean canGoForward);
-    boolean onLoadRequest(GeckoSession session, String uri, @TargetWindow int target);
+    // FIXME: which one is the right one? Focus and Crow don't use the same API
+    // boolean onLoadRequest(GeckoSession session, String uri, @TargetWindow int target);
+    void onLoadRequest(GeckoSession session, String uri, @TargetWindow int target, Response<Boolean> response);
     void onNewSession(GeckoSession session, String uri, Response<GeckoSession> response);
   }
 
@@ -387,9 +428,11 @@ public class GeckoSession {
     Log.w(LOGTAG, "GeckoSession::isOpen()");
     return true;
   }
-  public void openWindow(final @Nullable Context appContext) {
-    Log.w(LOGTAG, "GeckoSession::openWindow()");
+
+  public void open(final @NonNull GeckoRuntime runtime) {
+    Log.w(LOGTAG, "GeckoSession::open()");
   }
+
   public void closeWindow() {
     Log.w(LOGTAG, "GeckoSession::closeWindow()");
   }
