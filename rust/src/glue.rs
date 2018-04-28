@@ -2,21 +2,23 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+use android_injected_glue::load_asset; 
 use api::*;
 use servo::{self, gl, webrender_api, BrowserId, Servo};
 use servo::compositing::compositor_thread::{EmbedderMsg, EventLoopWaker};
 use servo::compositing::windowing::{AnimationState, EmbedderCoordinates, MouseWindowEvent,
                                     WindowEvent, WindowMethods};
+use servo::embedder_traits::resources::{self, Resource};
 use servo::euclid::{Length, TypedPoint2D, TypedScale, TypedSize2D, TypedVector2D};
 use servo::ipc_channel::ipc;
 use servo::msg::constellation_msg::TraversalDirection;
 use servo::script_traits::{MouseButton, TouchEventType};
 use servo::servo_config::opts;
-use servo::servo_config::resource_files::set_resources_path;
 use servo::servo_url::ServoUrl;
 use servo::style_traits::DevicePixel;
 use std::cell::{Cell, RefCell};
 use std::mem;
+use std::path::PathBuf;
 use std::rc::Rc;
 
 thread_local! {
@@ -38,7 +40,6 @@ pub fn servo_version() -> String {
 pub fn init(
     gl: Rc<gl::Gl>,
     url: String,
-    resources_path: String,
     wakeup: WakeupCallback,
     callbacks: HostCallbacks,
     width: u32,
@@ -46,7 +47,7 @@ pub fn init(
 ) -> Result<(), &'static str> {
     info!("Init");
 
-    set_resources_path(Some(resources_path));
+    resources::set(Box::new(ResourceReader));
 
     let opts = opts::default_opts();
     opts::set_defaults(opts);
@@ -202,6 +203,9 @@ impl ServoGlue {
                 EmbedderMsg::LoadComplete(_browser_id) => {
                     self.callbacks.host_callbacks.on_load_ended();
                 }
+                EmbedderMsg::GetSelectedBluetoothDevice(_, sender) => {
+                    let _ = sender.send(None);
+                },
                 EmbedderMsg::Status(..)
                 | EmbedderMsg::MoveTo(..)
                 | EmbedderMsg::ResizeTo(..)
@@ -210,6 +214,8 @@ impl ServoGlue {
                 | EmbedderMsg::NewFavicon(..)
                 | EmbedderMsg::HeadParsed(..)
                 | EmbedderMsg::SetFullscreenState(..)
+                | EmbedderMsg::ShowIME(..)
+                | EmbedderMsg::HideIME(..)
                 | EmbedderMsg::Shutdown
                 | EmbedderMsg::Panic(..) => {}
             }
@@ -282,5 +288,34 @@ impl WindowMethods for ServoCallbacks {
             screen_avail: size,
             hidpi_factor: TypedScale::new(2.0),
         }
+    }
+}
+
+struct ResourceReader;
+impl resources::ResourceReaderMethods for ResourceReader {
+    fn read(&self, file: Resource) -> Vec<u8> {
+        let file = match file {
+            Resource::Preferences => "prefs.json",
+            Resource::BluetoothBlocklist => "gatt_blocklist.txt",
+            Resource::DomainList => "public_domains.txt",
+            Resource::HstsPreloadList => "hsts_preload.json",
+            Resource::SSLCertificates => "certs",
+            Resource::BadCertHTML => "badcert.html",
+            Resource::NetErrorHTML => "neterror.html",
+            Resource::UserAgentCSS => "user-agent.css",
+            Resource::ServoCSS => "servo.css",
+            Resource::PresentationalHintsCSS => "presentational-hints.css",
+            Resource::QuirksModeCSS => "quirks-mode.css",
+            Resource::RippyPNG => "rippy.png",
+        };
+        load_asset(file).unwrap_or_else(|_| {
+            panic!("Can't load asset");
+        })
+    }
+    fn sandbox_access_files_dirs(&self) -> Vec<PathBuf> {
+        vec![]
+    }
+    fn sandbox_access_files(&self) -> Vec<PathBuf> {
+        vec![]
     }
 }

@@ -46,7 +46,6 @@ pub fn Java_org_mozilla_geckoview_LibServo_init(
     env: JNIEnv,
     _: JClass,
     url: JString,
-    resources_path: JString,
     wakeup_obj: JObject,
     callbacks_obj: JObject,
     width: jint,
@@ -64,9 +63,6 @@ pub fn Java_org_mozilla_geckoview_LibServo_init(
     let url = env.get_string(url)
         .expect("Couldn't get java string")
         .into();
-    let resources_path = env.get_string(resources_path)
-        .expect("Couldn't get java string")
-        .into();
 
     let wakeup = WakeupCallback::new(wakeup_obj, &env);
     let callbacks = HostCallbacks::new(callbacks_obj, &env);
@@ -75,7 +71,6 @@ pub fn Java_org_mozilla_geckoview_LibServo_init(
     glue::init(
         gl,
         url,
-        resources_path,
         wakeup,
         callbacks,
         width as u32,

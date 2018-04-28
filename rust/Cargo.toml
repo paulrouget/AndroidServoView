@@ -11,10 +11,11 @@ name = "servobridge"
 crate-type = ["cdylib"]
 
 [dependencies]
-libservo = { git = "https://github.com/servo/servo/" , rev = "91398cf"}
+libservo = { git = "https://github.com/servo/servo/" , rev = "625634a027"}
 libc = "0.2"
 log = "0.4"
 jni = "0.9"
+android_injected_glue = "0.2"
 android_logger = "0.5"
 
 [build-dependencies]

@@ -114,7 +114,7 @@ public class GeckoSession {
       public void run() {
         int width = mView.getWidth();
         int height = mView.getHeight();
-        mServo.init(mFutureUri, "/sdcard/servo/resources/", c1, c2, width, height);
+        mServo.init(mFutureUri, c1, c2, width, height);
       }
     });
   }
