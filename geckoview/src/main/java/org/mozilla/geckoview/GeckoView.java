@@ -14,6 +14,8 @@ import android.view.InputDevice;
 import android.view.GestureDetector;
 import android.widget.OverScroller;
 import android.view.Choreographer;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 
 import static android.opengl.GLSurfaceView.RENDERMODE_WHEN_DIRTY;
 
@@ -51,6 +53,9 @@ public class GeckoView extends FrameLayout implements GestureDetector.OnGestureL
   public void setSession(GeckoSession session) {
     mSession = session;
     mSession.setView(this);
+  }
+  public void setSession(@NonNull final GeckoSession session, @Nullable final GeckoRuntime runtime) {
+    setSession(session);
   }
   public GeckoSession getSession() {
     return mSession;

@@ -15,6 +15,9 @@ public final class GeckoRuntime {
     return sDefaultRuntime;
   }
 
+  void setPref(final String name, final Object value) {
+  }
+
   public void attachTo(final @NonNull Context context) {
     Log.w(GeckoSession.LOGTAG, "GeckoRuntime::attachTo()");
   }
@@ -23,5 +26,18 @@ public final class GeckoRuntime {
     Log.w(GeckoSession.LOGTAG, "GeckoRuntime::create()");
     return new GeckoRuntime();
   }
+
+  private static GeckoRuntimeSettings mSettings;
+  public GeckoRuntimeSettings getSettings() {
+    return mSettings;
+  }
+
+  public static @NonNull GeckoRuntime create(final @NonNull Context context, final @NonNull GeckoRuntimeSettings settings) {
+    Log.w(GeckoSession.LOGTAG, "GeckoRuntime::create() with setting");
+    mSettings = settings;
+    return new GeckoRuntime();
+  }
+
+
 }
 

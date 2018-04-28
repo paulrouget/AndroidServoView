@@ -410,6 +410,12 @@ public class GeckoSession {
    *
    */
 
+  public void loadData(@NonNull final byte[] bytes, @Nullable final String mimeType) {
+    Log.w(LOGTAG, "GeckoSession::loadData()");
+  }
+  public void loadData(@NonNull final byte[] bytes, @Nullable final String mimeType, @Nullable final String baseUri) {
+    Log.w(LOGTAG, "GeckoSession::loadData() with baseUri");
+  }
   public void loadUri(Uri uri) {
     this.loadUri(uri.toString());
   }
