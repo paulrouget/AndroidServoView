@@ -82,7 +82,7 @@ public class GeckoSession {
   public GeckoSession() {
   }
 
-  private GeckoSessionSettings mSettings;
+  private GeckoSessionSettings mSettings = new GeckoSessionSettings();
   public GeckoSession(GeckoSessionSettings settings) {
     mSettings = settings;
   }
@@ -137,14 +137,15 @@ public class GeckoSession {
     return mSettings;
   }
 
-  private GeckoDisplay mDisplay;
+  private GeckoDisplay mDisplay = new GeckoDisplay();
   public @NonNull GeckoDisplay acquireDisplay() {
+    Log.w(LOGTAG, "GeckoSession::acquireDisplay");
     return mDisplay;
   }
   public void releaseDisplay(GeckoDisplay display) {
   }
 
-  private PanZoomController mPanZoomController;
+  private PanZoomController mPanZoomController = new PanZoomController();
   public PanZoomController getPanZoomController() {
     return mPanZoomController;
   }
@@ -414,6 +415,10 @@ public class GeckoSession {
   }
   public void loadUri(final String uri) {
     Log.w(LOGTAG, "GeckoSession::loadUri()");
+    if (mView == null) {
+      Log.w(LOGTAG, "GeckoSession::loadUri() mView is null");
+      return;
+    }
     mView.queueEvent(new Runnable() {
       public void run() {
         if (mServo != null)  {
@@ -424,13 +429,16 @@ public class GeckoSession {
       }
     });
   }
+
+  private boolean mIsOpen = false;
   public boolean isOpen() {
     Log.w(LOGTAG, "GeckoSession::isOpen()");
-    return true;
+    return mIsOpen;
   }
 
   public void open(final @NonNull GeckoRuntime runtime) {
     Log.w(LOGTAG, "GeckoSession::open()");
+    mIsOpen = true;
   }
 
   public void closeWindow() {
