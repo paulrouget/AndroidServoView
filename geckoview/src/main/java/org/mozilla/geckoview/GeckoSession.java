@@ -10,6 +10,10 @@ import android.support.annotation.Nullable;
 import android.content.Context;
 import android.os.Bundle;
 import android.util.Log;
+import java.io.InputStream;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import android.content.res.AssetManager;
 
 public class GeckoSession {
   public static final String LOGTAG = "ServoView";
@@ -26,6 +30,22 @@ public class GeckoSession {
         }
       });
     };
+  }
+
+  static class ReadFileCallback implements LibServo.ReadFileCallback {
+    public byte[] readfile(String file) {
+      Log.w(LOGTAG, "java:readfile");
+      try {
+        AssetManager assetMgr = mView.getContext().getResources().getAssets();
+        InputStream stream = assetMgr.open(file);
+        byte[] bytes = new byte[stream.available()];
+        stream.read(bytes);
+        stream.close();
+        return bytes;
+      } catch (IOException e) {
+        throw new UncheckedIOException(e);
+      }
+    }
   }
 
   class ServoCallbacks implements LibServo.ServoCallbacks {
@@ -80,41 +100,41 @@ public class GeckoSession {
   }
 
   public GeckoSession() {
+    Log.w(LOGTAG, "java:GeckoSession constructor");
   }
 
   private GeckoSessionSettings mSettings = new GeckoSessionSettings();
   public GeckoSession(GeckoSessionSettings settings) {
+    Log.w(LOGTAG, "java:GeckoSession constructor with settings");
     mSettings = settings;
-  }
-
-  public static void preload(final @NonNull Context context) {
-    preload(context, null, null, false);
   }
 
   private static LibServo mServo;
   private static WakeupCallback mWakeupCallback;
-  public static void preload(final @NonNull Context context, final @Nullable String[] geckoArgs, final @Nullable Bundle extras, final boolean multiprocess) {
-  }
 
   public void close() {
+    Log.w(LOGTAG, "GeckoSession::close()");
   }
 
   private static GeckoView mView;
   public void setView(GeckoView view) {
+    Log.w(LOGTAG, "GeckoSession::setView()");
     mView = view;
   }
 
   public void onGLReady() {
-    Log.w(LOGTAG, "Loading libservo");
+    // Already in GL thread???
+    Log.w(LOGTAG, "GeckoSession::onGLReady. Loading libservo");
     mServo = new LibServo();
     Log.w(LOGTAG, mServo.version());
     final WakeupCallback c1 = new WakeupCallback();
-    final ServoCallbacks c2 = new ServoCallbacks();
+    final ReadFileCallback c2 = new ReadFileCallback();
+    final ServoCallbacks c3 = new ServoCallbacks();
     mView.queueEvent(new Runnable() {
       public void run() {
         int width = mView.getWidth();
         int height = mView.getHeight();
-        mServo.init(mFutureUri, c1, c2, width, height);
+        mServo.init(mFutureUri, c1, c2, c3, width, height);
       }
     });
   }

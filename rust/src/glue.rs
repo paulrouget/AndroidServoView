@@ -2,7 +2,6 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-use android_injected_glue::load_asset; 
 use api::*;
 use servo::{self, gl, webrender_api, BrowserId, Servo};
 use servo::compositing::compositor_thread::{EmbedderMsg, EventLoopWaker};
@@ -41,13 +40,12 @@ pub fn init(
     gl: Rc<gl::Gl>,
     url: String,
     wakeup: WakeupCallback,
+    readfile: ReadFileCallback,
     callbacks: HostCallbacks,
     width: u32,
     height: u32,
 ) -> Result<(), &'static str> {
-    info!("Init");
-
-    resources::set(Box::new(ResourceReader));
+    resources::set(Box::new(ResourceReader(readfile)));
 
     let opts = opts::default_opts();
     opts::set_defaults(opts);
@@ -291,9 +289,12 @@ impl WindowMethods for ServoCallbacks {
     }
 }
 
-struct ResourceReader;
+struct ResourceReader(ReadFileCallback);
+unsafe impl Send for ResourceReader {}
+unsafe impl Sync for ResourceReader {}
 impl resources::ResourceReaderMethods for ResourceReader {
     fn read(&self, file: Resource) -> Vec<u8> {
+        debug!("ResourceReader::read");
         let file = match file {
             Resource::Preferences => "prefs.json",
             Resource::BluetoothBlocklist => "gatt_blocklist.txt",
@@ -308,9 +309,7 @@ impl resources::ResourceReaderMethods for ResourceReader {
             Resource::QuirksModeCSS => "quirks-mode.css",
             Resource::RippyPNG => "rippy.png",
         };
-        load_asset(file).unwrap_or_else(|_| {
-            panic!("Can't load asset");
-        })
+        self.0.readfile(file)
     }
     fn sandbox_access_files_dirs(&self) -> Vec<PathBuf> {
         vec![]

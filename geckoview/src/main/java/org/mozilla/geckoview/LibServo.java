@@ -2,7 +2,11 @@ package org.mozilla.geckoview;
 
 public class LibServo {
     public native String version();
-    public native void init(String url, WakeupCallback wakeup, ServoCallbacks callbacks, int width, int height);
+    public native void init(String url,
+        WakeupCallback wakeup,
+        ReadFileCallback readfile,
+        ServoCallbacks callbacks,
+        int width, int height);
     public native void performUpdates();
     public native void resize(int width, int height);
     public native void reload();
@@ -16,6 +20,10 @@ public class LibServo {
     public LibServo() {
         System.loadLibrary("c++_shared");
         System.loadLibrary("servobridge");
+    }
+
+    public interface ReadFileCallback {
+        byte[] readfile(String file);
     }
 
     public interface WakeupCallback {

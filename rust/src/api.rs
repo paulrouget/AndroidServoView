@@ -47,6 +47,7 @@ pub fn Java_org_mozilla_geckoview_LibServo_init(
     _: JClass,
     url: JString,
     wakeup_obj: JObject,
+    readfile_obj: JObject,
     callbacks_obj: JObject,
     width: jint,
     height: jint,
@@ -65,6 +66,7 @@ pub fn Java_org_mozilla_geckoview_LibServo_init(
         .into();
 
     let wakeup = WakeupCallback::new(wakeup_obj, &env);
+    let readfile = ReadFileCallback::new(readfile_obj, &env);
     let callbacks = HostCallbacks::new(callbacks_obj, &env);
 
     let gl = gl_glue::egl::init();
@@ -72,6 +74,7 @@ pub fn Java_org_mozilla_geckoview_LibServo_init(
         gl,
         url,
         wakeup,
+        readfile,
         callbacks,
         width as u32,
         height as u32,
@@ -185,6 +188,31 @@ impl WakeupCallback {
         let env = self.jvm.attach_current_thread().unwrap();
         env.call_method(self.callback.as_obj(), "wakeup", "()V", &[])
             .unwrap();
+    }
+}
+
+pub struct ReadFileCallback {
+    callback: GlobalRef,
+    jvm: JavaVM,
+}
+
+impl ReadFileCallback {
+    pub fn new(jobject: JObject, env: &JNIEnv) -> ReadFileCallback {
+        let jvm = env.get_java_vm().unwrap();
+        let callback = env.new_global_ref(jobject).unwrap();
+        ReadFileCallback {
+            callback,
+            jvm,
+        }
+    }
+    pub fn readfile(&self, file: &str) -> Vec<u8> {
+        // FIXME: we'd rather use attach_current_thread but it detaches the VM too early.
+        let env = self.jvm.attach_current_thread_as_daemon().unwrap();
+        let s = env.new_string(&file).expect("Couldn't create java string").into_inner();
+        let s = JValue::from(JObject::from(s));
+        let array = env.call_method(self.callback.as_obj(), "readfile", "(Ljava/lang/String;)[B", &[s]);
+        let array = array.unwrap().l().unwrap().into_inner();
+        env.convert_byte_array(array).unwrap()
     }
 }
 
