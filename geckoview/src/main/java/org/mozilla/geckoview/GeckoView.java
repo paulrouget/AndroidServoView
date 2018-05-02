@@ -21,11 +21,13 @@ import static android.opengl.GLSurfaceView.RENDERMODE_WHEN_DIRTY;
 
 public class GeckoView extends FrameLayout implements GestureDetector.OnGestureListener, Choreographer.FrameCallback {
 
+  private static final String LOGTAG = "java::ServoView::GeckoView";
   private GLSurfaceView mView;
   private long mLastDownTime;
 
   public GeckoView(final Context context, final AttributeSet attrs) {
     super(context, attrs);
+    Log.w(LOGTAG, "GeckoView()");
     setFocusable(true);
     setFocusableInTouchMode(true);
     setDescendantFocusability(FOCUS_BLOCK_DESCENDANTS);
@@ -42,15 +44,18 @@ public class GeckoView extends FrameLayout implements GestureDetector.OnGestureL
   }
 
   public void requestRender() {
+    Log.w(LOGTAG, "GeckoView()");
     mView.requestRender();
   }
 
   public void queueEvent(Runnable r) {
+    Log.w(LOGTAG, "queueEvent()");
     mView.queueEvent(r);
   }
 
   private GeckoSession mSession;
   public void setSession(GeckoSession session) {
+    Log.w(LOGTAG, "setSession()");
     mSession = session;
     mSession.setView(this);
   }
@@ -58,20 +63,24 @@ public class GeckoView extends FrameLayout implements GestureDetector.OnGestureL
     setSession(session);
   }
   public GeckoSession getSession() {
+    Log.w(LOGTAG, "getSession()");
     return mSession;
   }
 
   class Renderer implements GLSurfaceView.Renderer {
     public void onDrawFrame(GL10 gl) {
+      Log.w(LOGTAG, "Renderer::onDrawFrame()");
     }
 
     public void onSurfaceChanged(GL10 gl, int width, int height) {
+      Log.w(LOGTAG, "Renderer::onSurfaceChanged()");
       if (mSession != null) {
         mSession.onViewResized(width, height);
       }
     }
 
     public void onSurfaceCreated(GL10 gl, EGLConfig config) {
+      Log.w(LOGTAG, "Renderer::onSurfaceCreated()");
       mSession.onGLReady();
     }
   }
@@ -85,10 +94,9 @@ public class GeckoView extends FrameLayout implements GestureDetector.OnGestureL
   private boolean mFlinging = false;
 
   public void doFrame(long frameTimeNanos) {
-    Log.w(GeckoSession.LOGTAG, "doFrame");
+    Log.w(LOGTAG, "doFrame()");
 
     if (mScroller.isFinished() && mFlinging) {
-      Log.w(GeckoSession.LOGTAG, "FLING OVER");
       mFlinging = false;
       mSession.scroll(0, 0, 0, 0, 2);
       return;
@@ -96,15 +104,12 @@ public class GeckoView extends FrameLayout implements GestureDetector.OnGestureL
 
     if (mFlinging) {
       mScroller.computeScrollOffset();
-      Log.w(GeckoSession.LOGTAG, "COMPUTE:" + mScroller.getCurrY());
       mCurY = mScroller.getCurrY();
     }
 
     int delta = mCurY - mLastY;
 
     mLastY = mCurY;
-
-    Log.w(GeckoSession.LOGTAG, "DELTA:" + delta);
 
     if (delta != 0) {
       mSession.scroll(0, delta, 0, 0, 1);
@@ -114,7 +119,7 @@ public class GeckoView extends FrameLayout implements GestureDetector.OnGestureL
   }
 
   public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
-    Log.w(GeckoSession.LOGTAG, "ONFLING ");
+    Log.w(LOGTAG, "onFling()");
     // FIXME: boundaries
     // https://github.com/servo/servo/issues/20361
     mFlinging = true;
@@ -126,17 +131,18 @@ public class GeckoView extends FrameLayout implements GestureDetector.OnGestureL
   }
 
   public boolean onDown(MotionEvent e) {
+    Log.w(LOGTAG, "onDown()");
     mScroller.forceFinished(true);
     return true;
   }
 
   public boolean onTouchEvent(final MotionEvent e) {
+    Log.w(LOGTAG, "onTouchEvent()");
     mGestureDetector.onTouchEvent(e);
 
     int action = e.getActionMasked();
     switch(action) {
       case (MotionEvent.ACTION_DOWN):
-        Log.w(GeckoSession.LOGTAG, "SCROLL START");
         mCurY = (int)e.getY();
         mLastY = mCurY;
         mScroller.forceFinished(true);
@@ -148,7 +154,6 @@ public class GeckoView extends FrameLayout implements GestureDetector.OnGestureL
         return true;
       case (MotionEvent.ACTION_UP):
       case (MotionEvent.ACTION_CANCEL):
-        Log.w(GeckoSession.LOGTAG, "SCROLL END");
         if (!mFlinging) {
           mSession.scroll(0, 0, 0, 0, 2);
           Choreographer.getInstance().removeFrameCallback(this);
@@ -160,6 +165,7 @@ public class GeckoView extends FrameLayout implements GestureDetector.OnGestureL
   }
 
   public boolean onSingleTapUp(MotionEvent e) {
+    Log.w(LOGTAG, "onSingleTapUp()");
     mSession.click((int)e.getX(), (int)e.getY());
     return false;
   }

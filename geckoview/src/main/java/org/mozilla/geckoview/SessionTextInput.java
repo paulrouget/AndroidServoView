@@ -9,34 +9,34 @@ import android.view.inputmethod.InputConnection;
 
 public final class SessionTextInput {
 
-    public synchronized void setView(final @Nullable View view) {
-    }
+  public synchronized void setView(final @Nullable View view) {
+  }
 
-    public synchronized @Nullable InputConnection onCreateInputConnection(final @NonNull EditorInfo attrs) {
-      return null;
-    }
+  public synchronized @Nullable InputConnection onCreateInputConnection(final @NonNull EditorInfo attrs) {
+    return null;
+  }
 
-    public boolean onKeyPreIme(final int keyCode, final @NonNull KeyEvent event) {
-      return true;
-    }
+  public boolean onKeyPreIme(final int keyCode, final @NonNull KeyEvent event) {
+    return true;
+  }
 
-    public boolean onKeyDown(final int keyCode, final @NonNull KeyEvent event) {
-      return true;
-    }
+  public boolean onKeyDown(final int keyCode, final @NonNull KeyEvent event) {
+    return true;
+  }
 
-    public boolean onKeyUp(final int keyCode, final @NonNull KeyEvent event) {
-      return true;
-    }
+  public boolean onKeyUp(final int keyCode, final @NonNull KeyEvent event) {
+    return true;
+  }
 
-    public boolean onKeyLongPress(final int keyCode, final @NonNull KeyEvent event) {
-      return true;
-    }
+  public boolean onKeyLongPress(final int keyCode, final @NonNull KeyEvent event) {
+    return true;
+  }
 
-    public boolean onKeyMultiple(final int keyCode, final int repeatCount, final @NonNull KeyEvent event) {
-      return true;
-    }
+  public boolean onKeyMultiple(final int keyCode, final int repeatCount, final @NonNull KeyEvent event) {
+    return true;
+  }
 
-    public void setShowSoftInputOnFocus(final boolean showSoftInputOnFocus) {
-    }
+  public void setShowSoftInputOnFocus(final boolean showSoftInputOnFocus) {
+  }
 }
 
