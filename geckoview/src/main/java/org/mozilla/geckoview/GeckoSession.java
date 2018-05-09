@@ -4,11 +4,12 @@ import org.mozilla.gecko.gfx.GeckoDisplay;
 import org.mozilla.gecko.gfx.PanZoomController;
 
 import android.net.Uri;
+import android.os.Handler;
+import android.os.Looper;
 import android.support.annotation.IntDef;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.content.Context;
-import android.os.Bundle;
 import android.util.Log;
 import java.io.InputStream;
 import java.io.IOException;
@@ -16,15 +17,24 @@ import java.io.UncheckedIOException;
 import android.content.res.AssetManager;
 
 public class GeckoSession {
-  private static final String LOGTAG = "java::ServoView::GeckoSession";
+  private static final String LOGTAG = "java::SV::GeckoSession";
 
   private static String mUrl;
   private static String mFutureUri = "about:blank";
+  private static AssetManager mAssetManager;
+
+  private static void runOnUiThread(Runnable r) {
+    new Handler(Looper.getMainLooper()).post(r);
+  }
+
+  private static void runOnGlThread(Runnable r) {
+    mView.queueEvent(r);
+  }
 
   static class WakeupCallback implements LibServo.WakeupCallback {
     public void wakeup(){
-      Log.w(LOGTAG, "WakeupCallback::wakeup()");
-      mView.queueEvent(new Runnable() {
+      Log.d(LOGTAG, "WakeupCallback::wakeup()");
+      runOnGlThread(new Runnable() {
         public void run() {
           mServo.performUpdates();
         }
@@ -34,10 +44,9 @@ public class GeckoSession {
 
   static class ReadFileCallback implements LibServo.ReadFileCallback {
     public byte[] readfile(String file) {
-      Log.w(LOGTAG, "ReadFileCallback::readfile(" + file + ")");
+      Log.d(LOGTAG, "ReadFileCallback::readfile(" + file + ")");
       try {
-        AssetManager assetMgr = mView.getContext().getResources().getAssets();
-        InputStream stream = assetMgr.open(file);
+        InputStream stream = mAssetManager.open(file);
         byte[] bytes = new byte[stream.available()];
         stream.read(bytes);
         stream.close();
@@ -50,21 +59,20 @@ public class GeckoSession {
 
   class ServoCallbacks implements LibServo.ServoCallbacks {
     public void flush() {
-      Log.w(LOGTAG, "ServoCallback::flush()");
+      Log.d(LOGTAG, "ServoCallback::flush()");
       mView.requestRender();
     };
     public void onLoadStarted() {
-      Log.w(LOGTAG, "ServoCallback::onLoadStarted()");
-      mView.post(new Runnable() {
+      Log.d(LOGTAG, "ServoCallback::onLoadStarted()");
+      runOnUiThread(new Runnable() {
         public void run() {
-          // FIXME: mFutureUri
           GeckoSession.this.getProgressDelegate().onPageStart(GeckoSession.this, mUrl != null ? mUrl : mFutureUri);
         }
       });
     };
     public void onLoadEnded() {
-      Log.w(LOGTAG, "ServoCallback::onLoadEnded()");
-      mView.post(new Runnable() {
+      Log.d(LOGTAG, "ServoCallback::onLoadEnded()");
+      runOnUiThread(new Runnable() {
         public void run() {
           // FIXME: no error support yet
           GeckoSession.this.getProgressDelegate().onPageStop(GeckoSession.this, true);
@@ -72,16 +80,16 @@ public class GeckoSession {
       });
     };
     public void onTitleChanged(final String title) {
-      Log.w(LOGTAG, "ServoCallback::onTitleChanged(" + title + ")");
-      mView.post(new Runnable() {
+      Log.d(LOGTAG, "ServoCallback::onTitleChanged(" + title + ")");
+      runOnUiThread(new Runnable() {
         public void run() {
           GeckoSession.this.getContentDelegate().onTitleChange(GeckoSession.this, title);
         }
       });
     };
     public void onUrlChanged(final String url) {
-      Log.w(LOGTAG, "ServoCallback::onUrlChanged(" + url + ")");
-      mView.post(new Runnable() {
+      Log.d(LOGTAG, "ServoCallback::onUrlChanged(" + url + ")");
+      runOnUiThread(new Runnable() {
         public void run() {
           mUrl = url;
           GeckoSession.this.mNavigationDelegate.onLocationChange(GeckoSession.this, url);
@@ -89,8 +97,8 @@ public class GeckoSession {
       });
     };
     public void onHistoryChanged(final boolean canGoBack, final boolean canGoForward) {
-      Log.w(LOGTAG, "ServoCallback::onHistoryChanged()");
-      mView.post(new Runnable() {
+      Log.d(LOGTAG, "ServoCallback::onHistoryChanged()");
+      runOnUiThread(new Runnable() {
         public void run() {
           GeckoSession.this.mNavigationDelegate.onCanGoBack(GeckoSession.this, canGoBack);
           GeckoSession.this.mNavigationDelegate.onCanGoForward(GeckoSession.this, canGoForward);
@@ -100,12 +108,12 @@ public class GeckoSession {
   }
 
   public GeckoSession() {
-    Log.w(LOGTAG, "GeckoSession()");
+    Log.d(LOGTAG, "GeckoSession()");
   }
 
   private GeckoSessionSettings mSettings = new GeckoSessionSettings();
   public GeckoSession(GeckoSessionSettings settings) {
-    Log.w(LOGTAG, "GeckoSession(settings)");
+    Log.d(LOGTAG, "GeckoSession(settings)");
     mSettings = settings;
   }
 
@@ -113,24 +121,24 @@ public class GeckoSession {
   private static WakeupCallback mWakeupCallback;
 
   public void close() {
-    Log.w(LOGTAG, "close()");
+    Log.d(LOGTAG, "close()");
   }
 
-  private static GeckoView mView;
-  public void setView(GeckoView view) {
-    Log.w(LOGTAG, "setView()");
+  private static ServoLooper mView;
+  public void setView(ServoLooper view) {
+    Log.d(LOGTAG, "setView()");
     mView = view;
   }
 
   public void onGLReady() {
     // Already in GL thread???
-    Log.w(LOGTAG, "onGLReady(). Loading Servo.");
+    Log.d(LOGTAG, "onGLReady(). Loading Servo.");
     mServo = new LibServo();
-    Log.w(LOGTAG, mServo.version());
+    Log.d(LOGTAG, mServo.version());
     final WakeupCallback c1 = new WakeupCallback();
     final ReadFileCallback c2 = new ReadFileCallback();
     final ServoCallbacks c3 = new ServoCallbacks();
-    mView.queueEvent(new Runnable() {
+    runOnGlThread(new Runnable() {
       public void run() {
         int width = mView.getWidth();
         int height = mView.getHeight();
@@ -140,8 +148,8 @@ public class GeckoSession {
   }
 
   public void onViewResized(final int width, final int height) {
-    Log.w(LOGTAG, "onViewResized()");
-    mView.queueEvent(new Runnable() {
+    Log.d(LOGTAG, "onViewResized()");
+    runOnGlThread(new Runnable() {
       public void run() {
         mServo.resize(width, height);
       }
@@ -150,27 +158,30 @@ public class GeckoSession {
 
   private SessionTextInput mTextInput = new SessionTextInput();
   public @NonNull SessionTextInput getTextInput() {
-    Log.w(LOGTAG, "getTextInput()");
+    Log.d(LOGTAG, "getTextInput()");
     return mTextInput;
   }
 
   public GeckoSessionSettings getSettings() {
-    Log.w(LOGTAG, "getSettings()");
+    Log.d(LOGTAG, "getSettings()");
     return mSettings;
   }
 
-  private GeckoDisplay mDisplay = new GeckoDisplay();
+  private GeckoDisplay mDisplay;
   public @NonNull GeckoDisplay acquireDisplay() {
-    Log.w(LOGTAG, "acquireDisplay()");
+    if (mDisplay == null) {
+       mDisplay = new GeckoDisplay(this);
+    }
+    Log.d(LOGTAG, "acquireDisplay()");
     return mDisplay;
   }
   public void releaseDisplay(GeckoDisplay display) {
-    Log.w(LOGTAG, "releaseDisplay()");
+    Log.d(LOGTAG, "releaseDisplay()");
   }
 
   private PanZoomController mPanZoomController = new PanZoomController();
   public PanZoomController getPanZoomController() {
-    Log.w(LOGTAG, "getPanZoomController()");
+    // Log.d(LOGTAG, "getPanZoomController()");
     return mPanZoomController;
   }
 
@@ -193,11 +204,11 @@ public class GeckoSession {
 
   private ContentDelegate mContentDelegate;
   public void setContentDelegate(ContentDelegate delegate) {
-    Log.w(LOGTAG, "setContentDelegate()");
+    Log.d(LOGTAG, "setContentDelegate()");
     mContentDelegate = delegate;
   }
   public ContentDelegate getContentDelegate() {
-    Log.w(LOGTAG, "getContentDelegate()");
+    Log.d(LOGTAG, "getContentDelegate()");
     return mContentDelegate;
   }
   public interface ContentDelegate {
@@ -221,11 +232,11 @@ public class GeckoSession {
 
   private ProgressDelegate mProgressDelegate;
   public void setProgressDelegate(ProgressDelegate delegate) {
-    Log.w(LOGTAG, "setProgressDelegate()");
+    Log.d(LOGTAG, "setProgressDelegate()");
     mProgressDelegate = delegate;
   }
   public ProgressDelegate getProgressDelegate() {
-    Log.w(LOGTAG, "getProgressDelegate()");
+    Log.d(LOGTAG, "getProgressDelegate()");
     return mProgressDelegate;
   }
   public interface ProgressDelegate {
@@ -258,11 +269,11 @@ public class GeckoSession {
 
   private TrackingProtectionDelegate mTrackingProtectionDelegate;
   public void setTrackingProtectionDelegate(TrackingProtectionDelegate delegate) {
-    Log.w(LOGTAG, "setTrackingProtectionDelegate()");
+    Log.d(LOGTAG, "setTrackingProtectionDelegate()");
     mTrackingProtectionDelegate = delegate;
   }
   public TrackingProtectionDelegate getTrackingProtectionDelegate() {
-    Log.w(LOGTAG, "getTrackingProtectionDelegate()");
+    Log.d(LOGTAG, "getTrackingProtectionDelegate()");
     return mTrackingProtectionDelegate;
   }
   public interface TrackingProtectionDelegate {
@@ -277,11 +288,11 @@ public class GeckoSession {
 
   private NavigationDelegate mNavigationDelegate;
   public void setNavigationDelegate(NavigationDelegate delegate) {
-    Log.w(LOGTAG, "setNavigationDelegate()");
+    Log.d(LOGTAG, "setNavigationDelegate()");
     mNavigationDelegate = delegate;
   }
   public NavigationDelegate getNavigationDelegate() {
-    Log.w(LOGTAG, "getNavigationDelegate()");
+    Log.d(LOGTAG, "getNavigationDelegate()");
     return mNavigationDelegate;
   }
   public interface NavigationDelegate {
@@ -302,11 +313,11 @@ public class GeckoSession {
 
   private PromptDelegate mPromptDelegate;
   public void setPromptDelegate(PromptDelegate delegate) {
-    Log.w(LOGTAG, "setPromptDelegate()");
+    Log.d(LOGTAG, "setPromptDelegate()");
     mPromptDelegate = delegate;
   }
   public PromptDelegate getPromptDelegate() {
-    Log.w(LOGTAG, "getPromptDelegate()");
+    Log.d(LOGTAG, "getPromptDelegate()");
     return mPromptDelegate;
   }
   public interface PromptDelegate {
@@ -388,11 +399,11 @@ public class GeckoSession {
 
   private PermissionDelegate mPermissionDelegate;
   public void setPermissionDelegate(PermissionDelegate delegate) {
-    Log.w(LOGTAG, "setPermissionDelegate()");
+    Log.d(LOGTAG, "setPermissionDelegate()");
     mPermissionDelegate = delegate;
   }
   public PermissionDelegate getPermissionDelegate() {
-    Log.w(LOGTAG, "getPermissionDelegate()");
+    Log.d(LOGTAG, "getPermissionDelegate()");
     return mPermissionDelegate;
   }
   public interface PermissionDelegate {
@@ -432,11 +443,11 @@ public class GeckoSession {
   }
   private ScrollDelegate mScrollDelegate;
   public void setScrollDelegate(ScrollDelegate delegate) {
-    Log.w(LOGTAG, "setScrollDelegate()");
+    Log.d(LOGTAG, "setScrollDelegate()");
     mScrollDelegate = delegate;
   }
   public ScrollDelegate getScrollDelegate() {
-    Log.w(LOGTAG, "getScrollDelegate()");
+    Log.d(LOGTAG, "getScrollDelegate()");
     return mScrollDelegate;
   }
 
@@ -447,28 +458,28 @@ public class GeckoSession {
    */
 
   public void loadData(@NonNull final byte[] bytes, @Nullable final String mimeType) {
-    Log.w(LOGTAG, "loadData()");
+    Log.d(LOGTAG, "loadData()");
   }
   public void loadData(@NonNull final byte[] bytes, @Nullable final String mimeType, @Nullable final String baseUri) {
-    Log.w(LOGTAG, "loadData(baseUri)");
+    Log.d(LOGTAG, "loadData(baseUri)");
   }
   public void loadUri(Uri uri) {
     this.loadUri(uri.toString());
   }
   public void loadUri(final String uri) {
-    Log.w(LOGTAG, "loadUri()");
+    Log.d(LOGTAG, "loadUri()");
     if (mView == null) {
-      Log.w(LOGTAG, "loadUri: mView is null");
+      Log.d(LOGTAG, "loadUri: mView is null");
       return;
     }
-    mView.queueEvent(new Runnable() {
+    runOnGlThread(new Runnable() {
       public void run() {
-        if (mServo != null)  {
-          Log.w(LOGTAG, "loadUri: mServo.loadUri()");
-          mServo.loadUri(uri);
+        if (mServo != null) {
+          Log.d(LOGTAG, "loadUri: mServo.loadUri()");
+          mServo.loadUri(/*uri*/ "https://servo.org"); // FIXME
         } else {
-          Log.w(LOGTAG, "loadUri: saving uri for later");
-          mFutureUri = uri;
+          Log.d(LOGTAG, "loadUri: saving uri for later");
+          mFutureUri = /*uri*/ "https://servo.org"; // FIXME
         }
       }
     });
@@ -476,67 +487,68 @@ public class GeckoSession {
 
   private boolean mIsOpen = false;
   public boolean isOpen() {
-    Log.w(LOGTAG, "isOpen()");
+    Log.d(LOGTAG, "isOpen()");
     return mIsOpen;
   }
 
   public void open(final @NonNull GeckoRuntime runtime) {
-    Log.w(LOGTAG, "open()");
+    Log.d(LOGTAG, "open()");
     mIsOpen = true;
+    mAssetManager = runtime.getContext().getAssets();
   }
 
   public void closeWindow() {
-    Log.w(LOGTAG, "closeWindow()");
+    Log.d(LOGTAG, "closeWindow()");
   }
   public void reload() {
-    Log.w(LOGTAG, "reload()");
-    mView.queueEvent(new Runnable() {
+    Log.d(LOGTAG, "reload()");
+    runOnGlThread(new Runnable() {
       public void run() {
-        if (mServo != null)  {
+        if (mServo != null) {
           mServo.reload();
         }
       }
     });
   }
   public void stop() {
-    Log.w(LOGTAG, "stop()");
+    Log.d(LOGTAG, "stop()");
     // FIXME
   }
   public void goBack() {
-    Log.w(LOGTAG, "goBack()");
-    mView.queueEvent(new Runnable() {
+    Log.d(LOGTAG, "goBack()");
+    runOnGlThread(new Runnable() {
       public void run() {
-        if (mServo != null)  {
+        if (mServo != null) {
           mServo.goBack();
         }
       }
     });
   }
   public void goForward() {
-    Log.w(LOGTAG, "goForward()");
-    mView.queueEvent(new Runnable() {
+    Log.d(LOGTAG, "goForward()");
+    runOnGlThread(new Runnable() {
       public void run() {
-        if (mServo != null)  {
+        if (mServo != null) {
           mServo.goForward();
         }
       }
     });
   }
   public void click(final int x, final int y) {
-    Log.w(LOGTAG, "click()");
-    mView.queueEvent(new Runnable() {
+    Log.d(LOGTAG, "click()");
+    runOnGlThread(new Runnable() {
       public void run() {
-        if (mServo != null)  {
+        if (mServo != null) {
           mServo.click(x, y);
         }
       }
     });
   }
   public void scroll(final int deltaX, final int deltaY, final int x, final int y, final int phase) {
-    Log.w(LOGTAG, "scroll(" + deltaX + "," + deltaY + "," + phase + ")");
-    mView.queueEvent(new Runnable() {
+    Log.d(LOGTAG, "scroll(" + deltaX + "," + deltaY + "," + phase + ")");
+    runOnGlThread(new Runnable() {
       public void run() {
-        if (mServo != null)  {
+        if (mServo != null) {
           mServo.scroll(deltaX, deltaY, x, y, phase);
           mServo.performUpdates();
         }
@@ -544,23 +556,23 @@ public class GeckoSession {
     });
   }
   public void setActive(boolean active) {
-    Log.w(LOGTAG, "setActive()");
+    Log.d(LOGTAG, "setActive()");
     // FIXME
   }
   public void importScript(final String url) {
-    Log.w(LOGTAG, "importScript()");
+    Log.d(LOGTAG, "importScript()");
     // FIXME
   }
   public void exitFullScreen() {
-    Log.w(LOGTAG, "exitFullScreen()");
+    Log.d(LOGTAG, "exitFullScreen()");
     // FIXME
   }
   public void enableTrackingProtection(int categories) {
-    Log.w(LOGTAG, "enableTrackingProtection()");
+    Log.d(LOGTAG, "enableTrackingProtection()");
     // FIXME
   }
   public void disableTrackingProtection() {
-    Log.w(LOGTAG, "disableTrackingProtection()");
+    Log.d(LOGTAG, "disableTrackingProtection()");
     // FIXME
   }
 

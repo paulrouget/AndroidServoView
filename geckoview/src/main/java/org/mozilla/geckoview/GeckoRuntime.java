@@ -8,37 +8,48 @@ import android.util.Log;
 public final class GeckoRuntime {
   private static final String LOGTAG = "java::ServoView::GeckoRuntime";
   private static GeckoRuntime sDefaultRuntime;
+  private Context mContext;
+
+  private GeckoRuntime(final @NonNull Context context) {
+    mContext = context;
+  }
+
+  public Context getContext() {
+    return mContext;
+  }
+
   public static synchronized @NonNull GeckoRuntime getDefault(final @NonNull Context context) {
-    Log.w(LOGTAG, "getDefault()");
+    Log.d(LOGTAG, "getDefault()");
     if (sDefaultRuntime == null) {
-      sDefaultRuntime = new GeckoRuntime();
+      sDefaultRuntime = new GeckoRuntime(context);
     }
     return sDefaultRuntime;
   }
 
   void setPref(final String name, final Object value) {
-    Log.w(LOGTAG, "setPref()");
+    Log.d(LOGTAG, "setPref()");
   }
 
   public void attachTo(final @NonNull Context context) {
-    Log.w(LOGTAG, "attachTo()");
+    Log.d(LOGTAG, "attachTo()");
+    mContext = context;
   }
 
   public static @NonNull GeckoRuntime create(final @NonNull Context context) {
-    Log.w(LOGTAG, "create()");
-    return new GeckoRuntime();
+    Log.d(LOGTAG, "create()");
+    return new GeckoRuntime(context);
   }
 
   private static GeckoRuntimeSettings mSettings;
   public GeckoRuntimeSettings getSettings() {
-    Log.w(LOGTAG, "getSettings");
+    Log.d(LOGTAG, "getSettings");
     return mSettings;
   }
 
   public static @NonNull GeckoRuntime create(final @NonNull Context context, final @NonNull GeckoRuntimeSettings settings) {
-    Log.w(LOGTAG, "create()");
+    Log.d(LOGTAG, "create()");
     mSettings = settings;
-    return new GeckoRuntime();
+    return new GeckoRuntime(context);
   }
 
 

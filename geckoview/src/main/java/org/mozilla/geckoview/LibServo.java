@@ -21,7 +21,7 @@ public class LibServo {
   public native void click(int x, int y);
 
   public LibServo() {
-    Log.w(LOGTAG, "LibServo()");
+    Log.d(LOGTAG, "LibServo()" + " THREAD: " + Thread.currentThread().getName());
     System.loadLibrary("c++_shared");
     System.loadLibrary("servobridge");
   }

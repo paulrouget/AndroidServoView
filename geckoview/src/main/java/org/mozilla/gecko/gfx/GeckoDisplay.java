@@ -3,13 +3,30 @@ package org.mozilla.gecko.gfx;
 import android.view.Surface;
 import android.util.Log;
 
+import org.mozilla.geckoview.GeckoSession;
+import org.mozilla.geckoview.ServoLooper;
+import org.mozilla.geckoview.ServoSurface;
+
 public class GeckoDisplay {
-  private static final String LOGTAG = "java::ServoView::GeckoDisplay";
-  public void surfaceChanged(Surface surface, int width, int height) {
-    Log.w(LOGTAG, "surfaceChanged()");
-    // HERE!!!
+  private static final String LOGTAG = "java::SV::GeckoDisplay";
+  private boolean initiated = false;
+  private GeckoSession mSession;
+
+  public GeckoDisplay(GeckoSession session) {
+    mSession = session;
+  }
+
+  public void surfaceChanged(final Surface surface, final int width, final int height) {
+    Log.d(LOGTAG, "surfaceChanged(" + width + "," + height + ")");
+    if (initiated) {
+      Log.e(LOGTAG, "FIXME: SurfaceChanged called multiple times. Why???");
+      return;
+    }
+    initiated = true;
+    ServoLooper l = new ServoLooper(mSession, surface, width, height);
+    l.start();
   }
   public void surfaceDestroyed() {
-    Log.w(LOGTAG, "surfaceDestroyed()");
+    Log.d(LOGTAG, "surfaceDestroyed()" + " THREAD: " + Thread.currentThread().getName());
   }
 }
