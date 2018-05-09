@@ -60,11 +60,6 @@ public class ServoSurface {
         }
 
         makeCurrent();
-
-        GLES31.glClearColor(1.0f, 0.0f, 0.0f, 0.5f);
-        GLES31.glClear(GLES31.GL_COLOR_BUFFER_BIT | GLES31.GL_DEPTH_BUFFER_BIT);
-
-        swapBuffers();
     }
 
 

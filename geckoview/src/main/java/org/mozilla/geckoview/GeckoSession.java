@@ -3,6 +3,7 @@ package org.mozilla.geckoview;
 import org.mozilla.gecko.gfx.GeckoDisplay;
 import org.mozilla.gecko.gfx.PanZoomController;
 
+import android.graphics.Rect;
 import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
@@ -33,7 +34,7 @@ public class GeckoSession {
 
   static class WakeupCallback implements LibServo.WakeupCallback {
     public void wakeup(){
-      Log.d(LOGTAG, "WakeupCallback::wakeup()");
+//      Log.d(LOGTAG, "WakeupCallback::wakeup()");
       runOnGlThread(new Runnable() {
         public void run() {
           mServo.performUpdates();
@@ -59,7 +60,7 @@ public class GeckoSession {
 
   class ServoCallbacks implements LibServo.ServoCallbacks {
     public void flush() {
-      Log.d(LOGTAG, "ServoCallback::flush()");
+//      Log.d(LOGTAG, "ServoCallback::flush()");
       mView.requestRender();
     };
     public void onLoadStarted() {
@@ -179,8 +180,11 @@ public class GeckoSession {
     Log.d(LOGTAG, "releaseDisplay()");
   }
 
-  private PanZoomController mPanZoomController = new PanZoomController();
+  private PanZoomController mPanZoomController;
   public PanZoomController getPanZoomController() {
+    if (mPanZoomController == null) {
+      mPanZoomController = new PanZoomController(this);
+    }
     // Log.d(LOGTAG, "getPanZoomController()");
     return mPanZoomController;
   }
@@ -545,7 +549,7 @@ public class GeckoSession {
     });
   }
   public void scroll(final int deltaX, final int deltaY, final int x, final int y, final int phase) {
-    Log.d(LOGTAG, "scroll(" + deltaX + "," + deltaY + "," + phase + ")");
+    // Log.d(LOGTAG, "scroll(" + deltaX + "," + deltaY + "," + phase + ")");
     runOnGlThread(new Runnable() {
       public void run() {
         if (mServo != null) {
@@ -574,6 +578,10 @@ public class GeckoSession {
   public void disableTrackingProtection() {
     Log.d(LOGTAG, "disableTrackingProtection()");
     // FIXME
+  }
+
+  public void getSurfaceBounds(@NonNull final Rect rect) {
+    rect.set(0, 0, mView.getWidth(), mView.getHeight());
   }
 
   public interface Response<T> {
