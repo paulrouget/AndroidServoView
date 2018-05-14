@@ -11,8 +11,7 @@ name = "servobridge"
 crate-type = ["cdylib"]
 
 [dependencies]
-# libservo = { git = "https://github.com/servo/servo/" , rev = "625634a027"}
-libservo = { path = "../../servo/components/servo/" }
+libservo = { git = "https://github.com/servo/servo/" , rev = "625634a027"}
 libc = "0.2"
 log = "0.4"
 jni = "0.10"
