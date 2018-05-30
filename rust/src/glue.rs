@@ -47,7 +47,8 @@ pub fn init(
 ) -> Result<(), &'static str> {
     resources::set(Box::new(ResourceReader(readfile)));
 
-    let opts = opts::default_opts();
+    let mut opts = opts::default_opts();
+    opts.enable_subpixel_text_antialiasing = false; // If VR, false.
     opts::set_defaults(opts);
 
     gl.clear_color(1.0, 1.0, 1.0, 1.0);
