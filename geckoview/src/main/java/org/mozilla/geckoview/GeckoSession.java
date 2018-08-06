@@ -17,12 +17,16 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import android.content.res.AssetManager;
 
+import com.mozilla.servoview.JNIServo;
+
+import android.app.Activity;
+
 public class GeckoSession {
   private static final String LOGTAG = "java::SV::GeckoSession";
-
   private static String mUrl;
   private static String mFutureUri = "about:blank";
-  private static AssetManager mAssetManager;
+  private static Activity mActivity;
+  private static AssetManager mAssetMgr;
 
   private static void runOnUiThread(Runnable r) {
     new Handler(Looper.getMainLooper()).post(r);
@@ -32,22 +36,11 @@ public class GeckoSession {
     mView.queueEvent(r);
   }
 
-  static class WakeupCallback implements LibServo.WakeupCallback {
-    public void wakeup(){
-//      Log.d(LOGTAG, "WakeupCallback::wakeup()");
-      runOnGlThread(new Runnable() {
-        public void run() {
-          mServo.performUpdates();
-        }
-      });
-    };
-  }
-
-  static class ReadFileCallback implements LibServo.ReadFileCallback {
+  class Callbacks implements JNIServo.Callbacks {
     public byte[] readfile(String file) {
       Log.d(LOGTAG, "ReadFileCallback::readfile(" + file + ")");
       try {
-        InputStream stream = mAssetManager.open(file);
+        InputStream stream = mAssetMgr.open(file);
         byte[] bytes = new byte[stream.available()];
         stream.read(bytes);
         stream.close();
@@ -56,12 +49,22 @@ public class GeckoSession {
         throw new UncheckedIOException(e);
       }
     }
-  }
-
-  class ServoCallbacks implements LibServo.ServoCallbacks {
+    public void wakeup(){
+      // Log.d(LOGTAG, "WakeupCallback::wakeup()");
+      runOnGlThread(new Runnable() {
+        public void run() {
+          mServo.performUpdates();
+        }
+      });
+    };
     public void flush() {
-//      Log.d(LOGTAG, "ServoCallback::flush()");
+      // Log.d(LOGTAG, "ServoCallback::flush()");
       mView.requestRender();
+    };
+    public void onAnimatingChanged(boolean animating) {
+    };
+    public void makeCurrent() {
+      mView.makeCurrent();
     };
     public void onLoadStarted() {
       Log.d(LOGTAG, "ServoCallback::onLoadStarted()");
@@ -118,8 +121,7 @@ public class GeckoSession {
     mSettings = settings;
   }
 
-  private static LibServo mServo;
-  private static WakeupCallback mWakeupCallback;
+  private static JNIServo mServo;
 
   public void close() {
     Log.d(LOGTAG, "close()");
@@ -134,16 +136,15 @@ public class GeckoSession {
   public void onGLReady() {
     // Already in GL thread???
     Log.d(LOGTAG, "onGLReady(). Loading Servo.");
-    mServo = new LibServo();
+    mServo = new JNIServo();
     Log.d(LOGTAG, mServo.version());
-    final WakeupCallback c1 = new WakeupCallback();
-    final ReadFileCallback c2 = new ReadFileCallback();
-    final ServoCallbacks c3 = new ServoCallbacks();
     runOnGlThread(new Runnable() {
       public void run() {
         int width = mView.getWidth();
         int height = mView.getHeight();
-        mServo.init(mFutureUri, c1, c2, c3, width, height);
+        mAssetMgr = mActivity.getResources().getAssets();
+        Callbacks cbs = new Callbacks();
+        mServo.init(mActivity, "", mFutureUri, cbs, width, height, true);
       }
     });
   }
@@ -498,7 +499,7 @@ public class GeckoSession {
   public void open(final @NonNull GeckoRuntime runtime) {
     Log.d(LOGTAG, "open()");
     mIsOpen = true;
-    mAssetManager = runtime.getContext().getAssets();
+    mActivity = (Activity)runtime.getContext();
   }
 
   public void closeWindow() {
@@ -553,8 +554,15 @@ public class GeckoSession {
     runOnGlThread(new Runnable() {
       public void run() {
         if (mServo != null) {
-          mServo.scroll(deltaX, deltaY, x, y, phase);
-          mServo.performUpdates();
+          if (phase == 0) {
+            mServo.scrollStart(deltaX, deltaY, x, y);
+          }
+          if (phase == 1) {
+            mServo.scroll(deltaX, deltaY, x, y);
+          }
+          if (phase == 2) {
+            mServo.scrollEnd(deltaX, deltaY, x, y);
+          }
         }
       }
     });

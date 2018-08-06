@@ -43,6 +43,15 @@ public class ServoLooper extends Thread {
         });
     }
 
+    public void makeCurrent() {
+        mHandler.post(new Runnable() {
+            public void run() {
+                mSSurface.makeCurrent();
+            }
+        });
+    }
+
+
     // FIXME
     @SuppressLint("HandlerLeak")
     @Override
