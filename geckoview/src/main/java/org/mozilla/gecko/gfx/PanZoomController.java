@@ -14,7 +14,7 @@ import org.mozilla.geckoview.GeckoSession;
 
 public final class PanZoomController {
 
-  private static final String LOGTAG = "java::ServoView::PanZoomController";
+  private static final String LOGTAG = "PanZoomController";
   private final GeckoSession mSession;
 
   private static final int EVENT_SOURCE_SCROLL = 0;
@@ -60,9 +60,9 @@ public final class PanZoomController {
 
     if (!mIsScrolling) {
       mIsScrolling = true;
-      mSession.scroll((int)hScroll, (int)vScroll, (int)x, (int)y, 0);
+      mSession.scrollStart((int)hScroll, (int)vScroll, (int)x, (int)y);
     } else {
-      mSession.scroll((int)hScroll, (int)vScroll, (int)x, (int)y, 1);
+      mSession.scroll((int)hScroll, (int)vScroll, (int)x, (int)y);
     }
     return true;
   }

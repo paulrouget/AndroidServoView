@@ -4,6 +4,7 @@
     <modules>
       <module fileurl="file://$PROJECT_DIR$/ServoView.iml" filepath="$PROJECT_DIR$/ServoView.iml" />
       <module fileurl="file://$PROJECT_DIR$/geckoview/geckoview.iml" filepath="$PROJECT_DIR$/geckoview/geckoview.iml" />
+      <module fileurl="file://$PROJECT_DIR$/servoview/servoview.iml" filepath="$PROJECT_DIR$/servoview/servoview.iml" />
     </modules>
   </component>
 </project>

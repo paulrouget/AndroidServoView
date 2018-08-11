@@ -3,108 +3,66 @@ package org.mozilla.geckoview;
 import org.mozilla.gecko.gfx.GeckoDisplay;
 import org.mozilla.gecko.gfx.PanZoomController;
 
+import android.app.Activity;
 import android.graphics.Rect;
 import android.net.Uri;
-import android.os.Handler;
-import android.os.Looper;
 import android.support.annotation.IntDef;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.content.Context;
 import android.util.Log;
-import java.io.InputStream;
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import android.content.res.AssetManager;
+import android.view.Surface;
+
+import com.mozilla.servoview.ServoSurface;
+import com.mozilla.servoview.Servo;
 
 public class GeckoSession {
   private static final String LOGTAG = "java::SV::GeckoSession";
+  private ServoSurface mServo;
+  private Activity mActivity;
+  private String mFutureUri;
+  private boolean mServoReady = false;
 
-  private static String mUrl;
-  private static String mFutureUri = "about:blank";
-  private static AssetManager mAssetManager;
+  private int mWidth;
+  private int mHeight;
 
-  private static void runOnUiThread(Runnable r) {
-    new Handler(Looper.getMainLooper()).post(r);
+  public void onSurfaceReady(Surface surface, int width, int height) {
+      mWidth = width;
+      mHeight = height;
+      mServo = new ServoSurface(surface, width, height);
+      mServo.setClient(new ServoCallbacks());
+      mServo.setActivity(mActivity);
+      mServo.runLoop();
   }
 
-  private static void runOnGlThread(Runnable r) {
-    mView.queueEvent(r);
-  }
+  class ServoCallbacks implements Servo.Client {
+    private String mUrl = "about:blank";
 
-  static class WakeupCallback implements LibServo.WakeupCallback {
-    public void wakeup(){
-//      Log.d(LOGTAG, "WakeupCallback::wakeup()");
-      runOnGlThread(new Runnable() {
-        public void run() {
-          mServo.performUpdates();
-        }
-      });
-    };
-  }
-
-  static class ReadFileCallback implements LibServo.ReadFileCallback {
-    public byte[] readfile(String file) {
-      Log.d(LOGTAG, "ReadFileCallback::readfile(" + file + ")");
-      try {
-        InputStream stream = mAssetManager.open(file);
-        byte[] bytes = new byte[stream.available()];
-        stream.read(bytes);
-        stream.close();
-        return bytes;
-      } catch (IOException e) {
-        throw new UncheckedIOException(e);
-      }
-    }
-  }
-
-  class ServoCallbacks implements LibServo.ServoCallbacks {
-    public void flush() {
-//      Log.d(LOGTAG, "ServoCallback::flush()");
-      mView.requestRender();
-    };
     public void onLoadStarted() {
       Log.d(LOGTAG, "ServoCallback::onLoadStarted()");
-      runOnUiThread(new Runnable() {
-        public void run() {
-          GeckoSession.this.getProgressDelegate().onPageStart(GeckoSession.this, mUrl != null ? mUrl : mFutureUri);
-        }
-      });
+      mServoReady = true;
+      GeckoSession.this.getProgressDelegate().onPageStart(GeckoSession.this, mUrl);
+      if (mFutureUri != null) {
+        mServo.loadUri(mFutureUri);
+      }
     };
     public void onLoadEnded() {
       Log.d(LOGTAG, "ServoCallback::onLoadEnded()");
-      runOnUiThread(new Runnable() {
-        public void run() {
-          // FIXME: no error support yet
-          GeckoSession.this.getProgressDelegate().onPageStop(GeckoSession.this, true);
-        }
-      });
+      GeckoSession.this.getProgressDelegate().onPageStop(GeckoSession.this, true);
     };
     public void onTitleChanged(final String title) {
       Log.d(LOGTAG, "ServoCallback::onTitleChanged(" + title + ")");
-      runOnUiThread(new Runnable() {
-        public void run() {
-          GeckoSession.this.getContentDelegate().onTitleChange(GeckoSession.this, title);
-        }
-      });
+      GeckoSession.this.getContentDelegate().onTitleChange(GeckoSession.this, title);
     };
     public void onUrlChanged(final String url) {
       Log.d(LOGTAG, "ServoCallback::onUrlChanged(" + url + ")");
-      runOnUiThread(new Runnable() {
-        public void run() {
-          mUrl = url;
-          GeckoSession.this.mNavigationDelegate.onLocationChange(GeckoSession.this, url);
-        }
-      });
+      mUrl = url;
+      GeckoSession.this.mNavigationDelegate.onLocationChange(GeckoSession.this, url);
     };
     public void onHistoryChanged(final boolean canGoBack, final boolean canGoForward) {
       Log.d(LOGTAG, "ServoCallback::onHistoryChanged()");
-      runOnUiThread(new Runnable() {
-        public void run() {
-          GeckoSession.this.mNavigationDelegate.onCanGoBack(GeckoSession.this, canGoBack);
-          GeckoSession.this.mNavigationDelegate.onCanGoForward(GeckoSession.this, canGoForward);
-        }
-      });
+      GeckoSession.this.mNavigationDelegate.onCanGoBack(GeckoSession.this, canGoBack);
+      GeckoSession.this.mNavigationDelegate.onCanGoForward(GeckoSession.this, canGoForward);
     };
   }
 
@@ -118,43 +76,8 @@ public class GeckoSession {
     mSettings = settings;
   }
 
-  private static LibServo mServo;
-  private static WakeupCallback mWakeupCallback;
-
   public void close() {
     Log.d(LOGTAG, "close()");
-  }
-
-  private static ServoLooper mView;
-  public void setView(ServoLooper view) {
-    Log.d(LOGTAG, "setView()");
-    mView = view;
-  }
-
-  public void onGLReady() {
-    // Already in GL thread???
-    Log.d(LOGTAG, "onGLReady(). Loading Servo.");
-    mServo = new LibServo();
-    Log.d(LOGTAG, mServo.version());
-    final WakeupCallback c1 = new WakeupCallback();
-    final ReadFileCallback c2 = new ReadFileCallback();
-    final ServoCallbacks c3 = new ServoCallbacks();
-    runOnGlThread(new Runnable() {
-      public void run() {
-        int width = mView.getWidth();
-        int height = mView.getHeight();
-        mServo.init(mFutureUri, c1, c2, c3, width, height);
-      }
-    });
-  }
-
-  public void onViewResized(final int width, final int height) {
-    Log.d(LOGTAG, "onViewResized()");
-    runOnGlThread(new Runnable() {
-      public void run() {
-        mServo.resize(width, height);
-      }
-    });
   }
 
   private SessionTextInput mTextInput = new SessionTextInput();
@@ -470,23 +393,19 @@ public class GeckoSession {
   public void loadUri(Uri uri) {
     this.loadUri(uri.toString());
   }
-  public void loadUri(final String uri) {
+  public void loadUri(String uri) {
     Log.d(LOGTAG, "loadUri()");
-    if (mView == null) {
-      Log.d(LOGTAG, "loadUri: mView is null");
-      return;
+    if (uri.startsWith("resource://")) {
+      uri = "data:text/html,<p>Unknown URL scheme:" + uri + "</p><p>Go to: <a href='https://servo.org'>servo.org</a></p>";
     }
-    runOnGlThread(new Runnable() {
-      public void run() {
-        if (mServo != null) {
-          Log.d(LOGTAG, "loadUri: mServo.loadUri()");
-          mServo.loadUri(/*uri*/ "https://servo.org"); // FIXME
-        } else {
-          Log.d(LOGTAG, "loadUri: saving uri for later");
-          mFutureUri = /*uri*/ "https://servo.org"; // FIXME
-        }
-      }
-    });
+    // FIXME
+    if (mServoReady) {
+      Log.d(LOGTAG, "loadUri: mServo.loadUri()");
+      mServo.loadUri(uri);
+    } else {
+      Log.d(LOGTAG, "loadUri: saving uri for later");
+      mFutureUri = uri;
+    }
   }
 
   private boolean mIsOpen = false;
@@ -498,7 +417,7 @@ public class GeckoSession {
   public void open(final @NonNull GeckoRuntime runtime) {
     Log.d(LOGTAG, "open()");
     mIsOpen = true;
-    mAssetManager = runtime.getContext().getAssets();
+    mActivity = (Activity) runtime.getContext();
   }
 
   public void closeWindow() {
@@ -506,13 +425,9 @@ public class GeckoSession {
   }
   public void reload() {
     Log.d(LOGTAG, "reload()");
-    runOnGlThread(new Runnable() {
-      public void run() {
-        if (mServo != null) {
-          mServo.reload();
-        }
-      }
-    });
+    if (mServoReady) {
+      mServo.reload();
+    }
   }
   public void stop() {
     Log.d(LOGTAG, "stop()");
@@ -520,45 +435,40 @@ public class GeckoSession {
   }
   public void goBack() {
     Log.d(LOGTAG, "goBack()");
-    runOnGlThread(new Runnable() {
-      public void run() {
-        if (mServo != null) {
-          mServo.goBack();
-        }
-      }
-    });
+    if (mServoReady) {
+      mServo.goBack();
+    }
   }
   public void goForward() {
     Log.d(LOGTAG, "goForward()");
-    runOnGlThread(new Runnable() {
-      public void run() {
-        if (mServo != null) {
-          mServo.goForward();
-        }
-      }
-    });
+    if (mServoReady) {
+      mServo.goForward();
+    }
   }
   public void click(final int x, final int y) {
     Log.d(LOGTAG, "click()");
-    runOnGlThread(new Runnable() {
-      public void run() {
-        if (mServo != null) {
-          mServo.click(x, y);
-        }
-      }
-    });
+    if (mServoReady) {
+      mServo.click(x, y);
+    }
   }
-  public void scroll(final int deltaX, final int deltaY, final int x, final int y, final int phase) {
-    // Log.d(LOGTAG, "scroll(" + deltaX + "," + deltaY + "," + phase + ")");
-    runOnGlThread(new Runnable() {
-      public void run() {
-        if (mServo != null) {
-          mServo.scroll(deltaX, deltaY, x, y, phase);
-          mServo.performUpdates();
+
+    public void scrollStart(final int deltaX, final int deltaY, final int x, final int y) {
+      if (mServoReady) {
+            mServo.scrollStart(deltaX, deltaY, x, y);
         }
-      }
-    });
-  }
+    }
+    public void scroll(final int deltaX, final int deltaY, final int x, final int y) {
+      if (mServoReady) {
+            mServo.scroll(deltaX, deltaY, x, y);
+        }
+    }
+    public void scrollEnd(final int deltaX, final int deltaY, final int x, final int y) {
+      if (mServoReady) {
+            mServo.scrollEnd(deltaX, deltaY, x, y);
+        }
+    }
+
+
   public void setActive(boolean active) {
     Log.d(LOGTAG, "setActive()");
     // FIXME
@@ -581,7 +491,7 @@ public class GeckoSession {
   }
 
   public void getSurfaceBounds(@NonNull final Rect rect) {
-    rect.set(0, 0, mView.getWidth(), mView.getHeight());
+    rect.set(0, 0, mWidth, mHeight);
   }
 
   public interface Response<T> {

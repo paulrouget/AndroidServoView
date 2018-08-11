@@ -1,1 +1,1 @@
-include ':geckoview'
+include ':geckoview', ':servoview'

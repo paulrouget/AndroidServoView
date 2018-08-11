@@ -4,8 +4,6 @@ import android.view.Surface;
 import android.util.Log;
 
 import org.mozilla.geckoview.GeckoSession;
-import org.mozilla.geckoview.ServoLooper;
-import org.mozilla.geckoview.ServoSurface;
 
 public class GeckoDisplay {
   private static final String LOGTAG = "java::SV::GeckoDisplay";
@@ -19,12 +17,10 @@ public class GeckoDisplay {
   public void surfaceChanged(final Surface surface, final int width, final int height) {
     Log.d(LOGTAG, "surfaceChanged(" + width + "," + height + ")");
     if (initiated) {
-      Log.e(LOGTAG, "FIXME: SurfaceChanged called multiple times. Why???");
       return;
     }
     initiated = true;
-    ServoLooper l = new ServoLooper(mSession, surface, width, height);
-    l.start();
+    mSession.onSurfaceReady(surface, width, height);
   }
   public void surfaceDestroyed() {
     Log.d(LOGTAG, "surfaceDestroyed()" + " THREAD: " + Thread.currentThread().getName());
