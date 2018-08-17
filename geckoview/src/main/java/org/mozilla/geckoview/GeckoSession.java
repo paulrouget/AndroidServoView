@@ -1,5 +1,8 @@
 package org.mozilla.geckoview;
 
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+
 import org.mozilla.gecko.gfx.GeckoDisplay;
 import org.mozilla.gecko.gfx.PanZoomController;
 
@@ -12,6 +15,9 @@ import android.support.annotation.Nullable;
 import android.content.Context;
 import android.util.Log;
 import android.view.Surface;
+import android.view.inputmethod.CursorAnchorInfo;
+import android.view.inputmethod.ExtractedText;
+import android.view.inputmethod.ExtractedTextRequest;
 
 import com.mozilla.servoview.ServoSurface;
 import com.mozilla.servoview.Servo;
@@ -153,6 +159,7 @@ public class GeckoSession {
     void onFullScreen(GeckoSession session, boolean fullScreen);
     void onContextMenu(GeckoSession session, int screenX, int screenY, String uri, @ElementType int elementType, String elementSrc);
     void onExternalResponse(GeckoSession session, WebResponseInfo response);
+    void onCrash(GeckoSession session);
   }
 
   /* ProgressDelegate */
@@ -190,6 +197,7 @@ public class GeckoSession {
     void onPageStart(GeckoSession session, String url);
     void onPageStop(GeckoSession session, boolean success);
     void onSecurityChange(GeckoSession session, SecurityInformation securityInfo);
+    void onProgressChange(GeckoSession session, int progress);
   }
 
   /* TrackingProtectionDelegate */
@@ -232,8 +240,83 @@ public class GeckoSession {
     void onLocationChange(GeckoSession session, String url);
     void onCanGoBack(GeckoSession session, boolean canGoBack);
     void onCanGoForward(GeckoSession session, boolean canGoForward);
-    void onLoadRequest(GeckoSession session, String uri, @TargetWindow int target, Response<Boolean> response);
-    void onNewSession(GeckoSession session, String uri, Response<GeckoSession> response);
+    GeckoResult<Boolean> onLoadRequest(GeckoSession session, String uri, @TargetWindow int target, int flags);
+    GeckoResult<GeckoSession> onNewSession(GeckoSession session, String uri);
+
+
+    @IntDef(flag = true,
+    value = {LOAD_REQUEST_IS_USER_TRIGGERED})
+      /* package */ @interface LoadRequestFlags {}
+
+    public static final int LOAD_REQUEST_IS_USER_TRIGGERED = 0x1000;
+
+    @IntDef({ERROR_CATEGORY_UNKNOWN, ERROR_CATEGORY_SECURITY,
+    ERROR_CATEGORY_NETWORK, ERROR_CATEGORY_CONTENT,
+    ERROR_CATEGORY_URI, ERROR_CATEGORY_PROXY,
+    ERROR_CATEGORY_SAFEBROWSING})
+      public @interface LoadErrorCategory {}
+
+    @IntDef({ERROR_UNKNOWN, ERROR_SECURITY_SSL, ERROR_SECURITY_BAD_CERT,
+    ERROR_NET_RESET, ERROR_NET_INTERRUPT, ERROR_NET_TIMEOUT,
+    ERROR_CONNECTION_REFUSED, ERROR_UNKNOWN_PROTOCOL,
+    ERROR_UNKNOWN_HOST, ERROR_UNKNOWN_SOCKET_TYPE,
+    ERROR_UNKNOWN_PROXY_HOST, ERROR_MALFORMED_URI,
+    ERROR_REDIRECT_LOOP, ERROR_SAFEBROWSING_PHISHING_URI,
+    ERROR_SAFEBROWSING_MALWARE_URI, ERROR_SAFEBROWSING_UNWANTED_URI,
+    ERROR_SAFEBROWSING_HARMFUL_URI, ERROR_CONTENT_CRASHED,
+    ERROR_OFFLINE, ERROR_PORT_BLOCKED,
+    ERROR_PROXY_CONNECTION_REFUSED, ERROR_FILE_NOT_FOUND,
+    ERROR_FILE_ACCESS_DENIED, ERROR_INVALID_CONTENT_ENCODING,
+    ERROR_UNSAFE_CONTENT_TYPE, ERROR_CORRUPTED_CONTENT})
+      public @interface LoadError {}
+
+    public static final int ERROR_CATEGORY_UNKNOWN = 0x1;
+    public static final int ERROR_CATEGORY_SECURITY = 0x2;
+    public static final int ERROR_CATEGORY_NETWORK = 0x3;
+    public static final int ERROR_CATEGORY_CONTENT = 0x4;
+    public static final int ERROR_CATEGORY_URI = 0x5;
+    public static final int ERROR_CATEGORY_PROXY = 0x6;
+    public static final int ERROR_CATEGORY_SAFEBROWSING = 0x7;
+
+    public static final int ERROR_UNKNOWN = 0x11;
+
+    // Security
+    public static final int ERROR_SECURITY_SSL = 0x22;
+    public static final int ERROR_SECURITY_BAD_CERT = 0x32;
+
+    // Network
+    public static final int ERROR_NET_INTERRUPT = 0x23;
+    public static final int ERROR_NET_TIMEOUT = 0x33;
+    public static final int ERROR_CONNECTION_REFUSED = 0x43;
+    public static final int ERROR_UNKNOWN_SOCKET_TYPE = 0x53;
+    public static final int ERROR_REDIRECT_LOOP = 0x63;
+    public static final int ERROR_OFFLINE = 0x73;
+    public static final int ERROR_PORT_BLOCKED = 0x83;
+    public static final int ERROR_NET_RESET = 0x93;
+
+    // Content
+    public static final int ERROR_UNSAFE_CONTENT_TYPE = 0x24;
+    public static final int ERROR_CORRUPTED_CONTENT = 0x34;
+    public static final int ERROR_CONTENT_CRASHED = 0x44;
+    public static final int ERROR_INVALID_CONTENT_ENCODING = 0x54;
+
+    // URI
+    public static final int ERROR_UNKNOWN_HOST = 0x25;
+    public static final int ERROR_MALFORMED_URI = 0x35;
+    public static final int ERROR_UNKNOWN_PROTOCOL = 0x45;
+    public static final int ERROR_FILE_NOT_FOUND = 0x55;
+    public static final int ERROR_FILE_ACCESS_DENIED = 0x65;
+
+    // Proxy
+    public static final int ERROR_PROXY_CONNECTION_REFUSED = 0x26;
+    public static final int ERROR_UNKNOWN_PROXY_HOST = 0x36;
+
+    // Safebrowsing
+    public static final int ERROR_SAFEBROWSING_MALWARE_URI = 0x27;
+    public static final int ERROR_SAFEBROWSING_UNWANTED_URI = 0x37;
+    public static final int ERROR_SAFEBROWSING_HARMFUL_URI = 0x47;
+    public static final int ERROR_SAFEBROWSING_PHISHING_URI = 0x57;
+    void onLoadError(GeckoSession session, String uri, int category, int error);
   }
 
   /* PromptDelegate */
@@ -334,6 +417,8 @@ public class GeckoSession {
     return mPermissionDelegate;
   }
   public interface PermissionDelegate {
+    public static final int PERMISSION_GEOLOCATION = 0;
+    public static final int PERMISSION_DESKTOP_NOTIFICATION = 1;
     interface Callback {
       void grant();
       void reject();
@@ -344,6 +429,8 @@ public class GeckoSession {
       void reject();
     }
     void onMediaPermissionRequest(GeckoSession session, String uri, MediaSource[] video, MediaSource[] audio, MediaCallback callback);
+    void onAndroidPermissionsRequest(GeckoSession session, String[] permissions, Callback callback);
+    void onContentPermissionRequest(GeckoSession session, String uri, int type, String access, Callback callback);
     class MediaSource {
       public static final int SOURCE_CAMERA = 0;
       public static final int SOURCE_SCREEN  = 1;
@@ -496,5 +583,24 @@ public class GeckoSession {
 
   public interface Response<T> {
     void respond(T val);
+  }
+
+
+  public interface TextInputDelegate {
+      @Retention(RetentionPolicy.SOURCE)
+      @IntDef({RESTART_REASON_FOCUS, RESTART_REASON_BLUR, RESTART_REASON_CONTENT_CHANGE})
+      @interface RestartReason {}
+      int RESTART_REASON_FOCUS = 0;
+      int RESTART_REASON_BLUR = 1;
+      int RESTART_REASON_CONTENT_CHANGE = 2;
+      void restartInput(@NonNull GeckoSession session, @RestartReason int reason);
+      void showSoftInput(@NonNull GeckoSession session);
+      void hideSoftInput(@NonNull GeckoSession session);
+      void updateSelection(@NonNull GeckoSession session, int selStart, int selEnd,
+                           int compositionStart, int compositionEnd);
+      void updateExtractedText(@NonNull GeckoSession session,
+                               @NonNull ExtractedTextRequest request,
+                               @NonNull ExtractedText text);
+      void updateCursorAnchorInfo(@NonNull GeckoSession session, @NonNull CursorAnchorInfo info);
   }
 }

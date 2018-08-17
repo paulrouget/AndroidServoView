@@ -56,6 +56,23 @@ public final class GeckoRuntimeSettings {
       mSettings.mWebFonts.set(flag);
       return this;
     }
+
+    public @NonNull Builder consoleOutput(boolean enabled) {
+      return this;
+    }
+
+    public @NonNull Builder nativeCrashReportingEnabled(final boolean enabled) {
+      return this;
+    }
+
+    public @NonNull Builder javaCrashReportingEnabled(final boolean enabled) {
+      return this;
+    }
+
+    public @NonNull Builder trackingProtectionCategories(int categories) {
+      return this;
+    }
+
   }
 
   GeckoRuntime runtime;
