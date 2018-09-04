@@ -4,6 +4,7 @@ A drop-in replacement for GeckoView. For now, compatible with Crow.
 
 - `cd servoview`
 - `wget https://download.servo.org/nightly/android/servo-latest.aar`
+- `cd ..`
 - `./gradlew assemble`
 - aar is available under: `geckoview/build/outputs/aar`
 
