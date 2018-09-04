@@ -12,6 +12,10 @@ public final class GeckoSessionSettings {
   public static final int DISPLAY_MODE_STANDALONE = 2;
   public static final int DISPLAY_MODE_FULLSCREEN = 3;
 
+  public static final int USER_AGENT_MODE_MOBILE = 0;
+  public static final int USER_AGENT_MODE_DESKTOP = 1;
+  public static final int USER_AGENT_MODE_VR = 2;
+
   public static class Key<T> {
     final String name;
     final boolean initOnly;
@@ -33,6 +37,8 @@ public final class GeckoSessionSettings {
   public static final Key<Boolean> USE_MULTIPROCESS = new Key<Boolean>("useMultiprocess", /* initOnly */ true, /* values */ null);
   public static final Key<Integer> DISPLAY_MODE = new Key<Integer>("displayMode", /* initOnly */ false, Arrays.asList(DISPLAY_MODE_BROWSER, DISPLAY_MODE_MINIMAL_UI, DISPLAY_MODE_STANDALONE, DISPLAY_MODE_FULLSCREEN));
   public static final Key<Boolean> USE_REMOTE_DEBUGGER = new Key<Boolean>("useRemoteDebugger"); 
+  public static final Key<Boolean> SUSPEND_MEDIA_WHEN_INACTIVE = new Key<Boolean>("suspendMediaWhenInactive", /* initOnly */ false, /* values */ null);
+  public static final Key<Integer> USER_AGENT_MODE = new Key<Integer>("userAgentMode", /* initOnly */ false, Arrays.asList(USER_AGENT_MODE_MOBILE, USER_AGENT_MODE_DESKTOP, USER_AGENT_MODE_VR));
 
   public GeckoSessionSettings() {
   }

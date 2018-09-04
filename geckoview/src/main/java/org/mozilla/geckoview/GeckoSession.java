@@ -319,7 +319,7 @@ public class GeckoSession {
     public static final int ERROR_SAFEBROWSING_UNWANTED_URI = 0x37;
     public static final int ERROR_SAFEBROWSING_HARMFUL_URI = 0x47;
     public static final int ERROR_SAFEBROWSING_PHISHING_URI = 0x57;
-    void onLoadError(GeckoSession session, String uri, int category, int error);
+    GeckoResult<String> onLoadError(GeckoSession session, String uri, int category, int error);
   }
 
   /* PromptDelegate */
@@ -422,6 +422,7 @@ public class GeckoSession {
   public interface PermissionDelegate {
     public static final int PERMISSION_GEOLOCATION = 0;
     public static final int PERMISSION_DESKTOP_NOTIFICATION = 1;
+    public static final int PERMISSION_AUTOPLAY_MEDIA = 2;
     interface Callback {
       void grant();
       void reject();
@@ -588,7 +589,6 @@ public class GeckoSession {
     void respond(T val);
   }
 
-
   public interface TextInputDelegate {
       @Retention(RetentionPolicy.SOURCE)
       @IntDef({RESTART_REASON_FOCUS, RESTART_REASON_BLUR, RESTART_REASON_CONTENT_CHANGE})
@@ -605,5 +605,18 @@ public class GeckoSession {
                                @NonNull ExtractedTextRequest request,
                                @NonNull ExtractedText text);
       void updateCursorAnchorInfo(@NonNull GeckoSession session, @NonNull CursorAnchorInfo info);
+      void notifyAutoFill(@NonNull GeckoSession session, int notification, int virtualId);
   }
+
+
+  public static class SessionState {
+  }
+
+  public void restoreState(final SessionState state) {
+  }
+
+  public GeckoResult<SessionState> saveState() {
+    return null;
+  }
+
 }

@@ -73,6 +73,17 @@ public final class GeckoRuntimeSettings {
       return this;
     }
 
+    public @NonNull Builder displayDensityOverride(float density) {
+      return this;
+    }
+
+    public @NonNull Builder screenSizeOverride(int width, int height) {
+      return this;
+    }
+
+    public @NonNull Builder displayDpiOverride(int dpi) {
+      return this;
+    }
   }
 
   GeckoRuntime runtime;
@@ -238,6 +249,10 @@ public final class GeckoRuntimeSettings {
    */
   public @NonNull GeckoRuntimeSettings setWebFontsEnabled(final boolean flag) {
     mWebFonts.set(flag);
+    return this;
+  }
+
+  public @NonNull GeckoRuntimeSettings setConsoleOutputEnabled(boolean enabled) {
     return this;
   }
 
