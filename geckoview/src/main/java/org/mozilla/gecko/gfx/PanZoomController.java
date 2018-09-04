@@ -70,11 +70,6 @@ public final class PanZoomController {
   private boolean handleMouseEvent(
           int action, long time, int metaState,
           float x, float y, int buttons) {
-
-    Log.d(LOGTAG, "3:?" + action);
-    if (action == MotionEvent.ACTION_UP) {
-      Log.d(LOGTAG, "3: click?");
-    }
     return true;
   }
 

@@ -36,8 +36,7 @@ public final class GeckoSessionSettings {
 
   public GeckoSessionSettings() {
   }
-  public GeckoSessionSettings(final @Nullable GeckoSessionSettings settings,
-      final @Nullable GeckoSession session) {
+  public GeckoSessionSettings(final @Nullable GeckoSessionSettings settings, final @Nullable GeckoSession session) {
   }
 
 

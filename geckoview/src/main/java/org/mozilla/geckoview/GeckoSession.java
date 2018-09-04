@@ -70,6 +70,9 @@ public class GeckoSession {
       GeckoSession.this.mNavigationDelegate.onCanGoBack(GeckoSession.this, canGoBack);
       GeckoSession.this.mNavigationDelegate.onCanGoForward(GeckoSession.this, canGoForward);
     };
+    public void onRedrawing(boolean redrawing) {
+      Log.d(LOGTAG, "ServoCallback::onRedrawing: " + redrawing);
+    };
   }
 
   public GeckoSession() {

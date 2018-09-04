@@ -39,16 +39,7 @@ public final class SessionTextInput {
   public void setShowSoftInputOnFocus(final boolean showSoftInputOnFocus) {
   }
 
-
   public void setDelegate(@Nullable final GeckoSession.TextInputDelegate delegate) {
   }
-
-//   public GeckoSession.TextInputDelegate getDelegate() {
-//     ThreadUtils.assertOnUiThread();
-//     if (mDelegate == null) {
-//       mDelegate = DefaultDelegate.INSTANCE;
-//     }
-//     return mDelegate;
-//   }
 }
 
