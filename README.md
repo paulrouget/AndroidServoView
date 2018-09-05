@@ -10,8 +10,10 @@ A drop-in replacement for GeckoView. For now, compatible with Crow.
 
 ## Compile Crow with the ServoView:
 
-- clone the `servo` branch of https://github.com/paulrouget/FirefoxReality/ (check last commit to see the diff with upstream). This Crow version is few months older than master. Rebasing on top of master is WIP.
+- clone https://github.com/paulrouget/FirefoxReality/ (check last commit to see the diff with upstream).
 - create a `user.properties`, and specify the path to the aar: `geckoViewLocal={PATH_TO}/geckoview/build/outputs/aar/geckoview-release.aar`
+- `cd servoview`
+- `wget https://download.servo.org/nightly/android/servo-latest.aar`
 - build with Android Studio
 
 ## Limitations
